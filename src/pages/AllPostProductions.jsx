@@ -41,6 +41,7 @@ const AllPostProductions = () => {
         videoType: '',
         videoProduct: '',
         videoProjectName: '',
+        videoName: '',
         editor: '',
         assignDate: new Date().toISOString().split('T')[0],
         deliveryDate: '',
@@ -114,7 +115,8 @@ const AllPostProductions = () => {
             clientName: selectedVideo?.clientName || '',
             videoType: selectedVideo?.videoType || '',
             videoProduct: selectedVideo?.product || '',
-            videoProjectName: selectedVideo?.projectName || ''
+            videoProjectName: selectedVideo?.projectName || '',
+            videoName: selectedVideo?.videoName || selectedVideo?.product || ''
         }));
     };
 
@@ -199,10 +201,121 @@ const AllPostProductions = () => {
                         Track and manage video editing and post-production tasks
                     </p>
                 </div>
-                <button onClick={() => handleOpenModal()} className="btn btn-primary">
-                    <Plus size={18} /> New Post Production
-                </button>
+                {!showModal && (
+                    <button onClick={() => setShowModal(true)} className="btn btn-primary">
+                        <Plus size={18} /> New Assignment
+                    </button>
+                )}
             </div>
+
+            {/* Form Section (Now directly on page when active) */}
+            {showModal && (
+                <div className="card animate-fade-in" style={{ marginBottom: '2rem', border: '1px solid var(--accent-color)' }}>
+                    <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h2 style={{ margin: 0, fontSize: '1.25rem' }}>
+                            {isEditMode ? 'Edit Assignment' : 'New Assignment'}
+                        </h2>
+                        <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                            <X size={24} />
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleSubmit} style={{ padding: '1.5rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
+                            {/* Video Selection */}
+                            <div className="form-group">
+                                <label>Select Video *</label>
+                                <select
+                                    name="videoId"
+                                    value={formData.videoId}
+                                    onChange={handleVideoChange}
+                                    required
+                                    disabled={loadingVideos}
+                                >
+                                    <option value="">Choose a video...</option>
+                                    {(videos || []).map(v => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.videoName || v.product || 'Unnamed Video'} ({v.clientName})
+                                        </option>
+                                    ))}
+                                </select>
+                                {loadingVideos && <small style={{ color: 'var(--text-secondary)' }}>Loading videos...</small>}
+                            </div>
+
+                            {/* Who in Edit */}
+                            <div className="form-group">
+                                <label>Who in Edit *</label>
+                                <select
+                                    name="editor"
+                                    value={formData.editor}
+                                    onChange={handleChange}
+                                    required
+                                >
+                                    <option value="">Select Editor</option>
+                                    {editorOptions.map(e => (
+                                        <option key={e} value={e}>{e}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Assign Date */}
+                            <div className="form-group">
+                                <label>Assign Date *</label>
+                                <input
+                                    type="date"
+                                    name="assignDate"
+                                    value={formData.assignDate}
+                                    onChange={handleChange}
+                                    required
+                                />
+                            </div>
+
+                            {/* Delivery Date */}
+                            <div className="form-group">
+                                <label>Delivery Date *</label>
+                                <input
+                                    type="date"
+                                    name="deliveryDate"
+                                    value={formData.deliveryDate}
+                                    onChange={handleChange}
+                                    required
+                                />
+                            </div>
+
+                            {/* Revision Date */}
+                            <div className="form-group">
+                                <label>Revision Date</label>
+                                <input
+                                    type="date"
+                                    name="revisionDate"
+                                    value={formData.revisionDate}
+                                    onChange={handleChange}
+                                />
+                            </div>
+
+                            {/* Read-only info */}
+                            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                                <div style={{ background: 'var(--bg-main)', padding: '1rem', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                                    <div><span style={{ color: 'var(--text-secondary)' }}>Client:</span> {formData.clientName || '-'}</div>
+                                    <div><span style={{ color: 'var(--text-secondary)' }}>Type:</span> {formData.videoType || '-'}</div>
+                                    <div><span style={{ color: 'var(--text-secondary)' }}>Project:</span> {formData.videoProjectName || '-'}</div>
+                                    <div><span style={{ color: 'var(--text-secondary)' }}>Product:</span> {formData.videoProduct || '-'}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                            <button type="button" onClick={handleCloseModal} className="btn btn-outline" style={{ border: 'none' }}>
+                                Cancel
+                            </button>
+                            <button type="submit" className="btn btn-primary" disabled={saving}>
+                                {saving ? <Loader2 size={18} className="spin" /> : <Save size={18} />}
+                                {saving ? ' Saving...' : (isEditMode ? ' Update' : ' Save')}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
 
             {/* Stats Cards */}
             <div className="stats-grid">
@@ -268,7 +381,7 @@ const AllPostProductions = () => {
                     <Film size={64} style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }} />
                     <h2 style={{ marginBottom: '0.5rem' }}>No Post Productions Yet</h2>
                     <p style={{ marginBottom: '1.5rem' }}>Start tracking your video editing tasks.</p>
-                    <button onClick={() => handleOpenModal()} className="btn btn-primary">
+                    <button onClick={() => setShowModal(true)} className="btn btn-primary">
                         <Plus size={18} /> Add First Entry
                     </button>
                 </div>
@@ -292,7 +405,7 @@ const AllPostProductions = () => {
                                 <tr key={item.id}>
                                     <td>
                                         <div style={{ fontWeight: 500 }}>
-                                            {item.videoProduct || 'N/A'}
+                                            {item.videoName || item.videoProduct || 'N/A'}
                                             {item.videoProjectName && (
                                                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                                                     {item.videoProjectName}
@@ -348,136 +461,6 @@ const AllPostProductions = () => {
                             ))}
                         </tbody>
                     </table>
-                </div>
-            )}
-
-            {/* Modal */}
-            {showModal && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 1000,
-                    backdropFilter: 'blur(5px)'
-                }}>
-                    <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', margin: '1rem', padding: '0' }}>
-                        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h2 style={{ margin: 0, fontSize: '1.25rem' }}>
-                                {isEditMode ? 'Edit Post Production' : 'New Post Production'}
-                            </h2>
-                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                                <X size={24} />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} style={{ padding: '1.5rem' }}>
-                            <div style={{ display: 'grid', gap: '1.5rem' }}>
-                                {/* Video Selection */}
-                                <div className="form-group">
-                                    <label>Select Video *</label>
-                                    <select
-                                        name="videoId"
-                                        value={formData.videoId}
-                                        onChange={handleVideoChange}
-                                        required
-                                        disabled={loadingVideos}
-                                    >
-                                        <option value="">Choose a video...</option>
-                                        {(videos || []).map(v => (
-                                            <option key={v.id} value={v.id}>
-                                                {v.projectName} - {v.product} ({v.clientName})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {loadingVideos && <small style={{ color: 'var(--text-secondary)' }}>Loading videos...</small>}
-                                </div>
-
-                                {/* Who in Edit */}
-                                <div className="form-group">
-                                    <label>Who in Edit *</label>
-                                    <select
-                                        name="editor"
-                                        value={formData.editor}
-                                        onChange={handleChange}
-                                        required
-                                    >
-                                        <option value="">Select Editor</option>
-                                        {editorOptions.map(e => (
-                                            <option key={e} value={e}>{e}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* Dates Grid */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                    <div className="form-group">
-                                        <label>Assign Date *</label>
-                                        <input
-                                            type="date"
-                                            name="assignDate"
-                                            value={formData.assignDate}
-                                            onChange={handleChange}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Delivery Date *</label>
-                                        <input
-                                            type="date"
-                                            name="deliveryDate"
-                                            value={formData.deliveryDate}
-                                            onChange={handleChange}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="form-group">
-                                    <label>Revision Date</label>
-                                    <input
-                                        type="date"
-                                        name="revisionDate"
-                                        value={formData.revisionDate}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-
-                                {/* Auto-filled Info (Read Only) */}
-                                <div style={{ background: 'var(--bg-main)', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem' }}>
-                                    <div style={{ marginBottom: '0.5rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Auto-filled Details:</div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(80px, auto) 1fr', gap: '0.5rem' }}>
-                                        <span style={{ color: 'var(--text-secondary)' }}>Client:</span>
-                                        <span>{formData.clientName || '-'}</span>
-
-                                        <span style={{ color: 'var(--text-secondary)' }}>Type:</span>
-                                        <span>{formData.videoType || '-'}</span>
-
-                                        <span style={{ color: 'var(--text-secondary)' }}>Project:</span>
-                                        <span>{formData.videoProjectName || '-'}</span>
-
-                                        <span style={{ color: 'var(--text-secondary)' }}>Product:</span>
-                                        <span>{formData.videoProduct || '-'}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                                <button type="button" onClick={handleCloseModal} className="btn btn-outline">
-                                    Cancel
-                                </button>
-                                <button type="submit" className="btn btn-primary" disabled={saving}>
-                                    {saving ? <Loader2 size={18} className="spin" /> : <Save size={18} />}
-                                    {saving ? ' Saving...' : (isEditMode ? ' Update' : ' Save')}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
                 </div>
             )}
         </div>

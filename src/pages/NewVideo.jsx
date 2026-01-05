@@ -42,6 +42,7 @@ const NewVideo = () => {
         projectId: '',
         clientName: '',
         videoType: '',
+        videoName: '',
         product: '',
         scriptDocsLink: '',
         storyboardLink: '',
@@ -84,6 +85,7 @@ const NewVideo = () => {
                     projectId: data.projectId || '',
                     clientName: data.clientName || '',
                     videoType: data.videoType || '',
+                    videoName: data.videoName || '',
                     product: data.product || '',
                     scriptDocsLink: data.scriptDocsLink || '',
                     storyboardLink: data.storyboardLink || '',
@@ -235,6 +237,19 @@ const NewVideo = () => {
                                     <option key={type} value={type}>{type}</option>
                                 ))}
                             </select>
+                        </div>
+
+                        {/* Video Name */}
+                        <div className="form-group">
+                            <label>Video Name *</label>
+                            <input
+                                type="text"
+                                name="videoName"
+                                value={formData.videoName}
+                                onChange={handleChange}
+                                required
+                                placeholder="Enter video name"
+                            />
                         </div>
 
                         {/* Product */}

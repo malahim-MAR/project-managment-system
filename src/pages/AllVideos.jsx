@@ -323,10 +323,11 @@ const AllVideos = () => {
                                 <th>Project</th>
                                 <th>Client</th>
                                 <th>Video Type</th>
+                                <th>Video Name</th>
                                 <th>Product</th>
                                 <th>Talent</th>
                                 <th>Shoot Day</th>
-                                <th>Time</th>
+                                {/* <th>Time</th> */}
                                 <th>Status</th>
                                 <th>Script</th>
                                 <th>Storyboard</th>
@@ -362,6 +363,9 @@ const AllVideos = () => {
                                             {video.videoType || 'N/A'}
                                         </span>
                                     </td>
+                                    <td style={{ fontWeight: 500, color: 'var(--accent-color)' }}>
+                                        {video.videoName || 'N/A'}
+                                    </td>
                                     <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
                                         {video.product || 'N/A'}
                                     </td>
@@ -373,7 +377,7 @@ const AllVideos = () => {
                                             year: 'numeric'
                                         }) : '-'}
                                     </td>
-                                    <td>{video.time || '-'}</td>
+                                    {/* <td>{video.time || '-'}</td> */}
                                     <td>
                                         <span className={`badge ${getShootStatusColor(video.shootStatus)}`} style={{ fontSize: '0.8rem' }}>
                                             {video.shootStatus || 'Pending'}
