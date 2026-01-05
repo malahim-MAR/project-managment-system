@@ -1,0 +1,487 @@
+import React, { useState, useEffect } from 'react';
+import { db } from '../firebase';
+import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { useData } from '../context/DataContext';
+import {
+    Film,
+    Loader2,
+    Trash2,
+    Pencil,
+    Plus,
+    Search,
+    ChevronDown,
+    User,
+    Calendar,
+    Video,
+    X,
+    Save
+} from 'lucide-react';
+
+const editorOptions = ['Muzammil Ali', 'Yasir Ghani', 'Zaviar Zarhan'];
+
+const AllPostProductions = () => {
+    const {
+        postProductions, loadingPostProductions, fetchPostProductions, updatePostProductionsCache,
+        videos, loadingVideos, fetchVideos
+    } = useData();
+
+    // Filter State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedEditor, setSelectedEditor] = useState('all');
+
+    // Modal & Form State
+    const [showModal, setShowModal] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingId, setEditingId] = useState(null);
+    const [saving, setSaving] = useState(false);
+
+    const [formData, setFormData] = useState({
+        videoId: '',
+        clientName: '',
+        videoType: '',
+        videoProduct: '',
+        videoProjectName: '',
+        editor: '',
+        assignDate: new Date().toISOString().split('T')[0],
+        deliveryDate: '',
+        revisionDate: ''
+    });
+
+    // Delete state
+    const [deletingId, setDeletingId] = useState(null);
+
+    useEffect(() => {
+        fetchPostProductions();
+        fetchVideos(); // Ensure we have videos for the dropdown
+    }, [fetchPostProductions, fetchVideos]);
+
+    // --- Form Handlers ---
+
+    const resetForm = () => {
+        setFormData({
+            videoId: '',
+            clientName: '',
+            videoType: '',
+            videoProduct: '',
+            videoProjectName: '',
+            editor: '',
+            assignDate: new Date().toISOString().split('T')[0],
+            deliveryDate: '',
+            revisionDate: ''
+        });
+        setIsEditMode(false);
+        setEditingId(null);
+    };
+
+    const handleOpenModal = (item = null) => {
+        if (item) {
+            setIsEditMode(true);
+            setEditingId(item.id);
+            setFormData({
+                videoId: item.videoId || '',
+                clientName: item.clientName || '',
+                videoType: item.videoType || '',
+                videoProduct: item.videoProduct || '',
+                videoProjectName: item.videoProjectName || '',
+                editor: item.editor || '',
+                assignDate: item.assignDate || '',
+                deliveryDate: item.deliveryDate || '',
+                revisionDate: item.revisionDate || ''
+            });
+        } else {
+            resetForm();
+        }
+        setShowModal(true);
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        resetForm();
+    };
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleVideoChange = (e) => {
+        const videoId = e.target.value;
+        const selectedVideo = videos?.find(v => v.id === videoId);
+
+        setFormData(prev => ({
+            ...prev,
+            videoId: videoId,
+            clientName: selectedVideo?.clientName || '',
+            videoType: selectedVideo?.videoType || '',
+            videoProduct: selectedVideo?.product || '',
+            videoProjectName: selectedVideo?.projectName || ''
+        }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+
+        try {
+            const dataToSave = {
+                ...formData,
+                updatedAt: serverTimestamp()
+            };
+
+            if (isEditMode) {
+                await updateDoc(doc(db, 'postproductions', editingId), dataToSave);
+                updatePostProductionsCache(prev => prev.map(item =>
+                    item.id === editingId ? { ...item, ...dataToSave, id: editingId } : item
+                ));
+            } else {
+                dataToSave.createdAt = serverTimestamp();
+                const docRef = await addDoc(collection(db, 'postproductions'), dataToSave);
+                updatePostProductionsCache(prev => ([{ ...dataToSave, id: docRef.id }, ...(prev || [])]));
+            }
+            handleCloseModal();
+        } catch (error) {
+            console.error("Error saving:", error);
+            alert("Failed to save entry");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Delete this post-production entry?")) return;
+        setDeletingId(id);
+        try {
+            await deleteDoc(doc(db, 'postproductions', id));
+            updatePostProductionsCache(prev => prev.filter(p => p.id !== id));
+        } catch (error) {
+            console.error("Error deleting:", error);
+            alert("Failed to delete entry");
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    // --- Filter Logic ---
+    const postProductionsList = postProductions || [];
+    const filteredItems = postProductionsList.filter(item => {
+        const matchSearch =
+            (item.clientName?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+            (item.videoType?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+            (item.videoProduct?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+        const matchEditor = selectedEditor === 'all' || item.editor === selectedEditor;
+        return matchSearch && matchEditor;
+    });
+
+    // Stats
+    const totalItems = postProductionsList.length;
+    const pendingItems = postProductionsList.filter(p => !p.deliveryDate || new Date(p.deliveryDate) > new Date()).length;
+    const completedItems = postProductionsList.filter(p => p.deliveryDate && new Date(p.deliveryDate) <= new Date()).length;
+
+    // Loading State
+    if (loadingPostProductions && postProductions === null) {
+        return (
+            <div className="page-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+                <Loader2 size={40} className="spin" style={{ color: 'var(--accent-color)' }} />
+            </div>
+        );
+    }
+
+    return (
+        <div className="page-container animate-fade-in" style={{ position: 'relative' }}>
+            {/* Header */}
+            <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                    <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0 }}>
+                        <Film size={32} color="var(--accent-color)" />
+                        Post Productions
+                    </h1>
+                    <p style={{ marginTop: '0.5rem', marginBottom: 0 }}>
+                        Track and manage video editing and post-production tasks
+                    </p>
+                </div>
+                <button onClick={() => handleOpenModal()} className="btn btn-primary">
+                    <Plus size={18} /> New Post Production
+                </button>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="stats-grid">
+                <div className="stat-card stat-card-blue">
+                    <div className="stat-icon">
+                        <Film size={24} />
+                    </div>
+                    <div className="stat-info">
+                        <div className="stat-value">{totalItems}</div>
+                        <div className="stat-label">Total</div>
+                    </div>
+                </div>
+                <div className="stat-card stat-card-yellow">
+                    <div className="stat-icon">
+                        <Calendar size={24} />
+                    </div>
+                    <div className="stat-info">
+                        <div className="stat-value">{pendingItems}</div>
+                        <div className="stat-label">In Progress</div>
+                    </div>
+                </div>
+                <div className="stat-card stat-card-green">
+                    <div className="stat-icon">
+                        <Video size={24} />
+                    </div>
+                    <div className="stat-info">
+                        <div className="stat-value">{completedItems}</div>
+                        <div className="stat-label">Delivered</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Filters */}
+            <div className="filters-bar">
+                <div className="search-box">
+                    <Search size={18} className="search-icon" />
+                    <input
+                        type="text"
+                        placeholder="Search by client, video type..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="search-input"
+                    />
+                </div>
+
+                <div className="filter-dropdown">
+                    <select value={selectedEditor} onChange={(e) => setSelectedEditor(e.target.value)}>
+                        <option value="all">All Editors</option>
+                        {editorOptions.map(e => <option key={e} value={e}>{e}</option>)}
+                    </select>
+                    <ChevronDown size={16} className="dropdown-icon" />
+                </div>
+            </div>
+
+            {/* Results Count */}
+            <div style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+                Showing {filteredItems.length} of {postProductionsList.length} entries
+            </div>
+
+            {/* Table */}
+            {filteredItems.length === 0 ? (
+                <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+                    <Film size={64} style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }} />
+                    <h2 style={{ marginBottom: '0.5rem' }}>No Post Productions Yet</h2>
+                    <p style={{ marginBottom: '1.5rem' }}>Start tracking your video editing tasks.</p>
+                    <button onClick={() => handleOpenModal()} className="btn btn-primary">
+                        <Plus size={18} /> Add First Entry
+                    </button>
+                </div>
+            ) : (
+                <div className="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Video</th>
+                                <th>Client</th>
+                                <th>Video Type</th>
+                                <th>Editor</th>
+                                <th>Assign Date</th>
+                                <th>Delivery Date</th>
+                                <th>Revision Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredItems.map(item => (
+                                <tr key={item.id}>
+                                    <td>
+                                        <div style={{ fontWeight: 500 }}>
+                                            {item.videoProduct || 'N/A'}
+                                            {item.videoProjectName && (
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                                    {item.videoProjectName}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                            <User size={14} color="var(--text-secondary)" />
+                                            {item.clientName || 'N/A'}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span className="badge badge-blue" style={{ fontSize: '0.8rem' }}>
+                                            {item.videoType || 'N/A'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                            <User size={14} color="var(--accent-color)" />
+                                            {item.editor || 'N/A'}
+                                        </div>
+                                    </td>
+                                    <td>{item.assignDate || '-'}</td>
+                                    <td>{item.deliveryDate || '-'}</td>
+                                    <td>{item.revisionDate || '-'}</td>
+                                    <td>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button
+                                                onClick={() => handleOpenModal(item)}
+                                                className="btn"
+                                                style={{
+                                                    padding: '0.4rem',
+                                                    background: 'var(--bg-card)',
+                                                    border: '1px solid var(--border-color)',
+                                                    color: 'var(--text-primary)'
+                                                }}
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                            <button
+                                                className="btn"
+                                                onClick={() => handleDelete(item.id)}
+                                                style={{ padding: '0.4rem', background: 'var(--danger)', color: 'white' }}
+                                                disabled={deletingId === item.id}
+                                            >
+                                                {deletingId === item.id ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {/* Modal */}
+            {showModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                    backdropFilter: 'blur(5px)'
+                }}>
+                    <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', margin: '1rem', padding: '0' }}>
+                        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h2 style={{ margin: 0, fontSize: '1.25rem' }}>
+                                {isEditMode ? 'Edit Post Production' : 'New Post Production'}
+                            </h2>
+                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmit} style={{ padding: '1.5rem' }}>
+                            <div style={{ display: 'grid', gap: '1.5rem' }}>
+                                {/* Video Selection */}
+                                <div className="form-group">
+                                    <label>Select Video *</label>
+                                    <select
+                                        name="videoId"
+                                        value={formData.videoId}
+                                        onChange={handleVideoChange}
+                                        required
+                                        disabled={loadingVideos}
+                                    >
+                                        <option value="">Choose a video...</option>
+                                        {(videos || []).map(v => (
+                                            <option key={v.id} value={v.id}>
+                                                {v.projectName} - {v.product} ({v.clientName})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {loadingVideos && <small style={{ color: 'var(--text-secondary)' }}>Loading videos...</small>}
+                                </div>
+
+                                {/* Who in Edit */}
+                                <div className="form-group">
+                                    <label>Who in Edit *</label>
+                                    <select
+                                        name="editor"
+                                        value={formData.editor}
+                                        onChange={handleChange}
+                                        required
+                                    >
+                                        <option value="">Select Editor</option>
+                                        {editorOptions.map(e => (
+                                            <option key={e} value={e}>{e}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Dates Grid */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <div className="form-group">
+                                        <label>Assign Date *</label>
+                                        <input
+                                            type="date"
+                                            name="assignDate"
+                                            value={formData.assignDate}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Delivery Date *</label>
+                                        <input
+                                            type="date"
+                                            name="deliveryDate"
+                                            value={formData.deliveryDate}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Revision Date</label>
+                                    <input
+                                        type="date"
+                                        name="revisionDate"
+                                        value={formData.revisionDate}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+
+                                {/* Auto-filled Info (Read Only) */}
+                                <div style={{ background: 'var(--bg-main)', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem' }}>
+                                    <div style={{ marginBottom: '0.5rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Auto-filled Details:</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(80px, auto) 1fr', gap: '0.5rem' }}>
+                                        <span style={{ color: 'var(--text-secondary)' }}>Client:</span>
+                                        <span>{formData.clientName || '-'}</span>
+
+                                        <span style={{ color: 'var(--text-secondary)' }}>Type:</span>
+                                        <span>{formData.videoType || '-'}</span>
+
+                                        <span style={{ color: 'var(--text-secondary)' }}>Project:</span>
+                                        <span>{formData.videoProjectName || '-'}</span>
+
+                                        <span style={{ color: 'var(--text-secondary)' }}>Product:</span>
+                                        <span>{formData.videoProduct || '-'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                                <button type="button" onClick={handleCloseModal} className="btn btn-outline">
+                                    Cancel
+                                </button>
+                                <button type="submit" className="btn btn-primary" disabled={saving}>
+                                    {saving ? <Loader2 size={18} className="spin" /> : <Save size={18} />}
+                                    {saving ? ' Saving...' : (isEditMode ? ' Update' : ' Save')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default AllPostProductions;
