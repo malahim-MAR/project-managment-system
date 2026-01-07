@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../firebase.js';
-import { deleteDoc, doc } from 'firebase/firestore';
+import { deleteDoc, doc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useData } from '../context/DataContext';
 import {
     Film,
@@ -17,7 +17,12 @@ import {
     Search,
     Video,
     Pencil,
-    Plus
+    Plus,
+    Table2,
+    Save,
+    X,
+    Check,
+    RotateCcw
 } from 'lucide-react';
 
 const videoTypeOptions = [
@@ -58,6 +63,13 @@ const AllVideos = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [availableMonths, setAvailableMonths] = useState([]);
 
+    // Bulk Edit State
+    const [isBulkEditMode, setIsBulkEditMode] = useState(false);
+    const [editedVideos, setEditedVideos] = useState({});
+    const [selectedRows, setSelectedRows] = useState(new Set());
+    const [isSaving, setIsSaving] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
+
     // Fetch videos on mount (uses cache if available)
     useEffect(() => {
         fetchVideos();
@@ -74,6 +86,11 @@ const AllVideos = () => {
     useEffect(() => {
         filterVideos();
     }, [videos, selectedMonth, selectedStatus, searchQuery]);
+
+    // Track if there are changes
+    useEffect(() => {
+        setHasChanges(Object.keys(editedVideos).length > 0);
+    }, [editedVideos]);
 
     const extractAvailableMonths = (videosData) => {
         const months = new Set();
@@ -134,7 +151,6 @@ const AllVideos = () => {
         setDeletingVideo(videoId);
         try {
             await deleteDoc(doc(db, 'videos', videoId));
-            // Update cache directly instead of re-fetching
             updateVideosCache(prev => prev.filter(v => v.id !== videoId));
         } catch (error) {
             console.error('Error deleting video:', error);
@@ -164,7 +180,136 @@ const AllVideos = () => {
 
     const hasActiveFilters = selectedMonth !== 'all' || selectedStatus !== 'all' || searchQuery.trim() !== '';
 
-    // Stats (handle null videos from cache)
+    // =============================================
+    // BULK EDIT FUNCTIONS
+    // =============================================
+
+    const toggleBulkEditMode = () => {
+        if (isBulkEditMode && hasChanges) {
+            if (!window.confirm('You have unsaved changes. Are you sure you want to exit bulk edit mode?')) {
+                return;
+            }
+        }
+        setIsBulkEditMode(!isBulkEditMode);
+        setEditedVideos({});
+        setSelectedRows(new Set());
+    };
+
+    const handleCellChange = (videoId, field, value) => {
+        setEditedVideos(prev => ({
+            ...prev,
+            [videoId]: {
+                ...prev[videoId],
+                [field]: value
+            }
+        }));
+    };
+
+    const getCellValue = (video, field) => {
+        if (editedVideos[video.id]?.[field] !== undefined) {
+            return editedVideos[video.id][field];
+        }
+        return video[field] || '';
+    };
+
+    const isRowEdited = (videoId) => {
+        return editedVideos[videoId] && Object.keys(editedVideos[videoId]).length > 0;
+    };
+
+    const toggleRowSelection = (videoId) => {
+        setSelectedRows(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(videoId)) {
+                newSet.delete(videoId);
+            } else {
+                newSet.add(videoId);
+            }
+            return newSet;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedRows.size === filteredVideos.length) {
+            setSelectedRows(new Set());
+        } else {
+            setSelectedRows(new Set(filteredVideos.map(v => v.id)));
+        }
+    };
+
+    const discardChanges = () => {
+        if (window.confirm('Are you sure you want to discard all changes?')) {
+            setEditedVideos({});
+        }
+    };
+
+    const saveAllChanges = async () => {
+        if (Object.keys(editedVideos).length === 0) {
+            alert('No changes to save.');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const batch = writeBatch(db);
+
+            Object.entries(editedVideos).forEach(([videoId, changes]) => {
+                const videoRef = doc(db, 'videos', videoId);
+                batch.update(videoRef, {
+                    ...changes,
+                    updatedAt: serverTimestamp()
+                });
+            });
+
+            await batch.commit();
+
+            // Update local cache
+            updateVideosCache(prev => prev.map(video => {
+                if (editedVideos[video.id]) {
+                    return { ...video, ...editedVideos[video.id] };
+                }
+                return video;
+            }));
+
+            setEditedVideos({});
+            alert(`Successfully saved ${Object.keys(editedVideos).length} video(s)!`);
+        } catch (error) {
+            console.error('Error saving changes:', error);
+            alert('Failed to save changes. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const deleteSelectedVideos = async () => {
+        if (selectedRows.size === 0) {
+            alert('No videos selected.');
+            return;
+        }
+
+        if (!window.confirm(`Are you sure you want to delete ${selectedRows.size} video(s)? This cannot be undone.`)) {
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const batch = writeBatch(db);
+            selectedRows.forEach(videoId => {
+                batch.delete(doc(db, 'videos', videoId));
+            });
+            await batch.commit();
+
+            updateVideosCache(prev => prev.filter(v => !selectedRows.has(v.id)));
+            setSelectedRows(new Set());
+            alert(`Successfully deleted ${selectedRows.size} video(s).`);
+        } catch (error) {
+            console.error('Error deleting videos:', error);
+            alert('Failed to delete videos. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Stats
     const videosList = videos || [];
     const totalVideos = videosList.length;
     const completedVideos = videosList.filter(v => v.shootStatus === 'Completed').length;
@@ -192,54 +337,86 @@ const AllVideos = () => {
                         Manage and track all video productions across projects
                     </p>
                 </div>
-                <Link to="/videos/new" className="btn btn-primary">
-                    <Plus size={18} /> Add Video
-                </Link>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button
+                        onClick={toggleBulkEditMode}
+                        className={`btn ${isBulkEditMode ? 'btn-warning' : 'btn-outline'}`}
+                    >
+                        {isBulkEditMode ? <X size={18} /> : <Table2 size={18} />}
+                        {isBulkEditMode ? 'Exit Bulk Edit' : 'Bulk Edit'}
+                    </button>
+                    <Link to="/videos/new" className="btn btn-primary">
+                        <Plus size={18} /> Add Video
+                    </Link>
+                </div>
             </div>
 
+            {/* Bulk Edit Actions Bar */}
+            {isBulkEditMode && (
+                <div className="bulk-edit-bar animate-fade-in">
+                    <div className="bulk-edit-info">
+                        <Table2 size={20} />
+                        <span><strong>Bulk Edit Mode</strong> - Click cells to edit. Changes are highlighted.</span>
+                    </div>
+                    <div className="bulk-edit-actions">
+                        <span className="bulk-edit-count">
+                            {Object.keys(editedVideos).length} modified
+                            {selectedRows.size > 0 && ` | ${selectedRows.size} selected`}
+                        </span>
+                        {hasChanges && (
+                            <button onClick={discardChanges} className="btn btn-outline" disabled={isSaving}>
+                                <RotateCcw size={16} /> Discard
+                            </button>
+                        )}
+                        {selectedRows.size > 0 && (
+                            <button onClick={deleteSelectedVideos} className="btn btn-danger" disabled={isSaving}>
+                                <Trash2 size={16} /> Delete ({selectedRows.size})
+                            </button>
+                        )}
+                        <button onClick={saveAllChanges} className="btn btn-primary" disabled={!hasChanges || isSaving}>
+                            {isSaving ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
+                            Save All Changes
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Stats Cards */}
-            <div className="stats-grid">
-                <div className="stat-card stat-card-blue">
-                    <div className="stat-icon">
-                        <Film size={24} />
+            {!isBulkEditMode && (
+                <div className="stats-grid">
+                    <div className="stat-card stat-card-blue">
+                        <div className="stat-icon"><Film size={24} /></div>
+                        <div className="stat-info">
+                            <div className="stat-value">{totalVideos}</div>
+                            <div className="stat-label">Total Videos</div>
+                        </div>
                     </div>
-                    <div className="stat-info">
-                        <div className="stat-value">{totalVideos}</div>
-                        <div className="stat-label">Total Videos</div>
+                    <div className="stat-card stat-card-green">
+                        <div className="stat-icon"><Video size={24} /></div>
+                        <div className="stat-info">
+                            <div className="stat-value">{completedVideos}</div>
+                            <div className="stat-label">Completed</div>
+                        </div>
                     </div>
-                </div>
-                <div className="stat-card stat-card-green">
-                    <div className="stat-icon">
-                        <Video size={24} />
+                    <div className="stat-card stat-card-yellow">
+                        <div className="stat-icon"><Calendar size={24} /></div>
+                        <div className="stat-info">
+                            <div className="stat-value">{pendingVideos}</div>
+                            <div className="stat-label">Pending/Scheduled</div>
+                        </div>
                     </div>
-                    <div className="stat-info">
-                        <div className="stat-value">{completedVideos}</div>
-                        <div className="stat-label">Completed</div>
-                    </div>
-                </div>
-                <div className="stat-card stat-card-yellow">
-                    <div className="stat-icon">
-                        <Calendar size={24} />
-                    </div>
-                    <div className="stat-info">
-                        <div className="stat-value">{pendingVideos}</div>
-                        <div className="stat-label">Pending/Scheduled</div>
-                    </div>
-                </div>
-                <div className="stat-card stat-card-purple">
-                    <div className="stat-icon">
-                        <Loader2 size={24} />
-                    </div>
-                    <div className="stat-info">
-                        <div className="stat-value">{inProgressVideos}</div>
-                        <div className="stat-label">In Progress</div>
+                    <div className="stat-card stat-card-purple">
+                        <div className="stat-icon"><Loader2 size={24} /></div>
+                        <div className="stat-info">
+                            <div className="stat-value">{inProgressVideos}</div>
+                            <div className="stat-label">In Progress</div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             {/* Filters Bar */}
             <div className="filters-bar">
-                {/* Search */}
                 <div className="search-box">
                     <Search size={18} className="search-icon" />
                     <input
@@ -251,12 +428,8 @@ const AllVideos = () => {
                     />
                 </div>
 
-                {/* Month Filter */}
                 <div className="filter-dropdown">
-                    <select
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                    >
+                    <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
                         <option value="all">All Months</option>
                         {availableMonths.map(month => (
                             <option key={month} value={month}>{getMonthLabel(month)}</option>
@@ -265,24 +438,16 @@ const AllVideos = () => {
                     <ChevronDown size={16} className="dropdown-icon" />
                 </div>
 
-                {/* Status Filter */}
                 <div className="filter-dropdown">
-                    <select
-                        value={selectedStatus}
-                        onChange={(e) => setSelectedStatus(e.target.value)}
-                    >
+                    <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
                         <option value="all">All Statuses</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Scheduled">Scheduled</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
-                        <option value="On Hold">On Hold</option>
+                        {shootStatusOptions.map(status => (
+                            <option key={status} value={status}>{status}</option>
+                        ))}
                     </select>
                     <ChevronDown size={16} className="dropdown-icon" />
                 </div>
 
-                {/* Clear Filters */}
                 {hasActiveFilters && (
                     <button onClick={clearFilters} className="btn btn-outline">
                         <Filter size={16} /> Clear Filters
@@ -296,7 +461,7 @@ const AllVideos = () => {
                 {hasActiveFilters && ' (filtered)'}
             </div>
 
-            {/* Videos Table */}
+            {/* Videos Table / Spreadsheet */}
             {filteredVideos.length === 0 ? (
                 <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
                     <Film size={64} style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }} />
@@ -315,7 +480,144 @@ const AllVideos = () => {
                         </button>
                     )}
                 </div>
+            ) : isBulkEditMode ? (
+                // =============================================
+                // BULK EDIT SPREADSHEET VIEW
+                // =============================================
+                <div className="spreadsheet-container">
+                    <table className="spreadsheet-table">
+                        <thead>
+                            <tr>
+                                <th className="spreadsheet-checkbox-col">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedRows.size === filteredVideos.length && filteredVideos.length > 0}
+                                        onChange={toggleSelectAll}
+                                        title="Select All"
+                                    />
+                                </th>
+                                <th className="spreadsheet-col-fixed">Video Name</th>
+                                <th>Product</th>
+                                <th>Video Type</th>
+                                <th>Talent</th>
+                                <th>Shoot Day</th>
+                                <th>Status</th>
+                                <th>Script Link</th>
+                                <th>Storyboard Link</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredVideos.map((video) => (
+                                <tr
+                                    key={video.id}
+                                    className={`
+                                        ${isRowEdited(video.id) ? 'spreadsheet-row-edited' : ''}
+                                        ${selectedRows.has(video.id) ? 'spreadsheet-row-selected' : ''}
+                                    `}
+                                >
+                                    <td className="spreadsheet-checkbox-col">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedRows.has(video.id)}
+                                            onChange={() => toggleRowSelection(video.id)}
+                                        />
+                                    </td>
+                                    <td className="spreadsheet-col-fixed">
+                                        <input
+                                            type="text"
+                                            className="spreadsheet-input"
+                                            value={getCellValue(video, 'videoName')}
+                                            onChange={(e) => handleCellChange(video.id, 'videoName', e.target.value)}
+                                            placeholder="Video name..."
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            type="text"
+                                            className="spreadsheet-input"
+                                            value={getCellValue(video, 'product')}
+                                            onChange={(e) => handleCellChange(video.id, 'product', e.target.value)}
+                                            placeholder="Product..."
+                                        />
+                                    </td>
+                                    <td>
+                                        <select
+                                            className="spreadsheet-select"
+                                            value={getCellValue(video, 'videoType')}
+                                            onChange={(e) => handleCellChange(video.id, 'videoType', e.target.value)}
+                                        >
+                                            <option value="">Select type...</option>
+                                            {videoTypeOptions.map(type => (
+                                                <option key={type} value={type}>{type}</option>
+                                            ))}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input
+                                            type="text"
+                                            className="spreadsheet-input"
+                                            value={getCellValue(video, 'videoTalent')}
+                                            onChange={(e) => handleCellChange(video.id, 'videoTalent', e.target.value)}
+                                            placeholder="Talent..."
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            type="date"
+                                            className="spreadsheet-input"
+                                            value={getCellValue(video, 'shootDay')}
+                                            onChange={(e) => handleCellChange(video.id, 'shootDay', e.target.value)}
+                                        />
+                                    </td>
+                                    <td>
+                                        <select
+                                            className="spreadsheet-select spreadsheet-status"
+                                            value={getCellValue(video, 'shootStatus')}
+                                            onChange={(e) => handleCellChange(video.id, 'shootStatus', e.target.value)}
+                                            data-status={getCellValue(video, 'shootStatus')}
+                                        >
+                                            {shootStatusOptions.map(status => (
+                                                <option key={status} value={status}>{status}</option>
+                                            ))}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input
+                                            type="url"
+                                            className="spreadsheet-input"
+                                            value={getCellValue(video, 'scriptDocsLink')}
+                                            onChange={(e) => handleCellChange(video.id, 'scriptDocsLink', e.target.value)}
+                                            placeholder="https://..."
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            type="url"
+                                            className="spreadsheet-input"
+                                            value={getCellValue(video, 'storyboardLink')}
+                                            onChange={(e) => handleCellChange(video.id, 'storyboardLink', e.target.value)}
+                                            placeholder="https://..."
+                                        />
+                                    </td>
+                                    <td>
+                                        <input
+                                            type="text"
+                                            className="spreadsheet-input spreadsheet-notes"
+                                            value={getCellValue(video, 'specialNotes')}
+                                            onChange={(e) => handleCellChange(video.id, 'specialNotes', e.target.value)}
+                                            placeholder="Notes..."
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             ) : (
+                // =============================================
+                // NORMAL TABLE VIEW
+                // =============================================
                 <div className="table-container">
                     <table>
                         <thead>
@@ -327,7 +629,6 @@ const AllVideos = () => {
                                 <th>Product</th>
                                 <th>Talent</th>
                                 <th>Shoot Day</th>
-                                {/* <th>Time</th> */}
                                 <th>Status</th>
                                 <th>Script</th>
                                 <th>Storyboard</th>
@@ -377,7 +678,6 @@ const AllVideos = () => {
                                             year: 'numeric'
                                         }) : '-'}
                                     </td>
-                                    {/* <td>{video.time || '-'}</td> */}
                                     <td>
                                         <span className={`badge ${getShootStatusColor(video.shootStatus)}`} style={{ fontSize: '0.8rem' }}>
                                             {video.shootStatus || 'Pending'}
@@ -453,7 +753,7 @@ const AllVideos = () => {
                     </table>
                 </div>
             )}
-        </div >
+        </div>
     );
 };
 

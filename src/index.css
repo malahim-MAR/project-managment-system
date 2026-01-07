@@ -1632,3 +1632,276 @@ tr:hover td {
     font-size: 0.8rem;
   }
 }
+
+/* =============================================
+   BULK EDIT / SPREADSHEET STYLES
+   ============================================= */
+
+.bulk-edit-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.08) 100%);
+  border: 1px solid var(--accent-color);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.bulk-edit-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-primary);
+}
+
+.bulk-edit-info svg {
+  color: var(--accent-color);
+}
+
+.bulk-edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.bulk-edit-count {
+  padding: 0.35rem 0.85rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
+  color: white;
+}
+
+.btn-warning:hover {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+/* Spreadsheet Container */
+.spreadsheet-container {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-card);
+}
+
+.spreadsheet-table {
+  width: 100%;
+  min-width: 1200px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.spreadsheet-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.spreadsheet-table th {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0.85rem 0.75rem;
+  text-align: left;
+  border-bottom: 2px solid var(--accent-color);
+  white-space: nowrap;
+}
+
+.spreadsheet-table th:first-child {
+  border-radius: 11px 0 0 0;
+}
+
+.spreadsheet-table th:last-child {
+  border-radius: 0 11px 0 0;
+}
+
+.spreadsheet-checkbox-col {
+  width: 40px;
+  text-align: center !important;
+}
+
+.spreadsheet-checkbox-col input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent-color);
+}
+
+.spreadsheet-col-fixed {
+  min-width: 180px;
+}
+
+.spreadsheet-table tbody tr {
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.15s ease;
+}
+
+.spreadsheet-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.spreadsheet-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.spreadsheet-row-edited {
+  background: rgba(59, 130, 246, 0.08) !important;
+}
+
+.spreadsheet-row-edited td:first-child::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent-color);
+}
+
+.spreadsheet-row-selected {
+  background: rgba(139, 92, 246, 0.1) !important;
+}
+
+.spreadsheet-table td {
+  padding: 0.25rem;
+  position: relative;
+  vertical-align: middle;
+}
+
+/* Spreadsheet Inputs */
+.spreadsheet-input,
+.spreadsheet-select {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all 0.15s ease;
+}
+
+.spreadsheet-input:hover,
+.spreadsheet-select:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.spreadsheet-input:focus,
+.spreadsheet-select:focus {
+  outline: none;
+  background: var(--bg-secondary);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.spreadsheet-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+.spreadsheet-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  padding-right: 1.75rem;
+}
+
+.spreadsheet-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Status-specific coloring */
+.spreadsheet-status[data-status="Completed"] {
+  color: var(--success);
+}
+
+.spreadsheet-status[data-status="In Progress"] {
+  color: var(--accent-color);
+}
+
+.spreadsheet-status[data-status="Pending"],
+.spreadsheet-status[data-status="Scheduled"],
+.spreadsheet-status[data-status="On Hold"] {
+  color: var(--warning);
+}
+
+.spreadsheet-status[data-status="Cancelled"] {
+  color: var(--danger);
+}
+
+.spreadsheet-notes {
+  min-width: 200px;
+}
+
+/* Spreadsheet scrollbar */
+.spreadsheet-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.spreadsheet-container::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.spreadsheet-container::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.spreadsheet-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Responsive Bulk Edit */
+@media (max-width: 768px) {
+  .bulk-edit-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bulk-edit-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .spreadsheet-container {
+    border-radius: 8px;
+  }
+
+  .spreadsheet-table th,
+  .spreadsheet-table td {
+    padding: 0.5rem 0.35rem;
+  }
+
+  .spreadsheet-input,
+  .spreadsheet-select {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.8rem;
+  }
+}
