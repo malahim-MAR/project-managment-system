@@ -158,6 +158,9 @@ const NewVideo = () => {
                 };
 
                 await addDoc(collection(db, 'videos'), videoData);
+
+                // Send notification to all users (only for new videos)
+                await notifyVideoAssigned(formData.videoName || formData.product, projectName, user?.id);
             }
 
             // Invalidate cache so the list fetches fresh data

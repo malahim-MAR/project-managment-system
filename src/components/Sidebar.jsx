@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Film, Clapperboard, FileText, Video, Users, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const Sidebar = () => {
     const location = useLocation();
@@ -19,15 +20,18 @@ const Sidebar = () => {
 
     return (
         <aside className="global-sidebar">
-            {/* Logo */}
-            <div className="sidebar-logo">
-                <div className="sidebar-logo-icon">
-                    <Clapperboard size={24} color="white" />
+            {/* Logo & Notification */}
+            <div className="sidebar-header">
+                <div className="sidebar-logo">
+                    <div className="sidebar-logo-icon">
+                        <Clapperboard size={24} color="white" />
+                    </div>
+                    <div className="sidebar-logo-text">
+                        <span className="sidebar-logo-title">AAA Studios</span>
+                        <span className="sidebar-logo-subtitle">Project Manager</span>
+                    </div>
                 </div>
-                <div className="sidebar-logo-text">
-                    <span className="sidebar-logo-title">AAA Studios</span>
-                    <span className="sidebar-logo-subtitle">Project Manager</span>
-                </div>
+                <NotificationBell />
             </div>
 
             {/* Navigation */}

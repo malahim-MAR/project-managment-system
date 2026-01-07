@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase.js';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
+import { notifyPostProductionAssigned } from '../utils/notifications';
 import {
     Film,
     Loader2,
@@ -24,6 +26,7 @@ const AllPostProductions = () => {
         postProductions, loadingPostProductions, fetchPostProductions, updatePostProductionsCache,
         videos, loadingVideos, fetchVideos
     } = useData();
+    const { user } = useAuth();
 
     // Filter State
     const [searchQuery, setSearchQuery] = useState('');
@@ -139,6 +142,9 @@ const AllPostProductions = () => {
                 dataToSave.createdAt = serverTimestamp();
                 const docRef = await addDoc(collection(db, 'postproductions'), dataToSave);
                 updatePostProductionsCache(prev => ([{ ...dataToSave, id: docRef.id }, ...(prev || [])]));
+
+                // Send notification to all users (only for new assignments)
+                await notifyPostProductionAssigned(formData.videoName || formData.videoProduct, formData.editor, user?.id);
             }
             handleCloseModal();
         } catch (error) {

@@ -4,6 +4,8 @@ import { ArrowLeft, Loader2, FileText, Save, Pencil } from 'lucide-react';
 import { db } from '../firebase.js';
 import { collection, addDoc, serverTimestamp, getDocs, orderBy, query, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
+import { notifyScriptAssigned } from '../utils/notifications';
 
 const contentTypeOptions = [
     'Outlet Video',
@@ -38,6 +40,7 @@ const NewScript = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const { invalidateScripts, invalidateVideos } = useData();
+    const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [clients, setClients] = useState([]);
     const [videos, setVideos] = useState([]);
@@ -145,6 +148,9 @@ const NewScript = () => {
             } else {
                 const docRef = await addDoc(collection(db, 'scripts'), dataToSave);
                 scriptId = docRef.id;
+
+                // Send notification to all users (only for new scripts)
+                await notifyScriptAssigned(formData.clientName, formData.contentType, user?.id);
             }
 
             // 4. Update Related Video (if selected)
