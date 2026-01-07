@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Loader2, Video, FileText } from 'lucide-react';
-import { db } from '../firebase';
+import { db } from '../firebase.js';
 import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useData } from '../context/DataContext';
 

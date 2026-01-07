@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { db } from '../firebase';
+import { db } from '../firebase.js';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { useData } from '../context/DataContext';
 import { FolderGit2, ExternalLink, Plus, Loader2, Pencil, Trash2, Link as LinkIcon, Calendar, Video } from 'lucide-react';

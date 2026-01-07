@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { db } from '../firebase';
+import { db } from '../firebase.js';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 
 const DataContext = createContext();
