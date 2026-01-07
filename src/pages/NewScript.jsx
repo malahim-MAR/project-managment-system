@@ -150,7 +150,7 @@ const NewScript = () => {
                 scriptId = docRef.id;
 
                 // Send notification to all users (only for new scripts)
-                await notifyScriptAssigned(formData.clientName, formData.contentType, user?.id);
+                await notifyScriptAssigned(formData.clientName, formData.contentType);
             }
 
             // 4. Update Related Video (if selected)

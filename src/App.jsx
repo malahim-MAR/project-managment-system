@@ -204,18 +204,17 @@ function AppRoutes() {
   );
 }
 
-// ... imports
 import { NotificationProvider } from './context/NotificationContext';
 
 function App() {
   return (
     <AuthProvider>
       <DataProvider>
-        <NotificationProvider>
-          <Router>
+        <Router>
+          <NotificationProvider>
             <AppRoutes />
-          </Router>
-        </NotificationProvider>
+          </NotificationProvider>
+        </Router>
       </DataProvider>
     </AuthProvider>
   );

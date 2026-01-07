@@ -144,7 +144,7 @@ const AllPostProductions = () => {
                 updatePostProductionsCache(prev => ([{ ...dataToSave, id: docRef.id }, ...(prev || [])]));
 
                 // Send notification to all users (only for new assignments)
-                await notifyPostProductionAssigned(formData.videoName || formData.videoProduct, formData.editor, user?.id);
+                await notifyPostProductionAssigned(formData.videoName || formData.videoProduct, formData.editor);
             }
             handleCloseModal();
         } catch (error) {

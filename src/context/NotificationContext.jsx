@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { requestForToken, onMessageListener, db } from '../firebase';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { db } from '../firebase';
 import { useAuth } from './AuthContext';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
-import { Bell } from 'lucide-react';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { X, ExternalLink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const NotificationContext = createContext();
 
@@ -12,106 +13,163 @@ export const useNotification = () => {
 
 export const NotificationProvider = ({ children }) => {
     const { user } = useAuth();
-    const [notification, setNotification] = useState({ title: '', body: '' });
-    const [showNotification, setShowNotification] = useState(false);
+    const [toasts, setToasts] = useState([]);
+    const previousCountRef = useRef(0);
 
-    // Request permission and save token to user profile
+    // Add a toast notification
+    const addToast = useCallback((notification) => {
+        const id = Date.now() + Math.random();
+        const toast = {
+            id,
+            ...notification,
+            createdAt: new Date()
+        };
+
+        setToasts(prev => [toast, ...prev].slice(0, 5)); // Keep max 5 toasts
+
+        // Auto remove after 8 seconds
+        setTimeout(() => {
+            removeToast(id);
+        }, 8000);
+    }, []);
+
+    // Remove a toast
+    const removeToast = useCallback((id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    }, []);
+
+    // Listen for new notifications in real-time - Simple query without index
     useEffect(() => {
-        if (user?.id) {
-            const setupNotifications = async () => {
-                const token = await requestForToken();
-                if (token) {
-                    console.log('FCM Token:', token);
-                    // Save token to user document if it's new
-                    // We use arrayUnion to add it to a list of tokens (for multiple devices)
-                    try {
-                        const userRef = doc(db, 'users', user.id);
-                        await updateDoc(userRef, {
-                            fcmTokens: arrayUnion(token)
-                        });
-                    } catch (error) {
-                        console.error("Error saving FCM token:", error);
-                    }
+        if (!user?.id) return;
+
+        const notificationsQuery = query(
+            collection(db, 'notifications'),
+            where('userId', '==', user.id)
+        );
+
+        const unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
+            const currentCount = snapshot.docs.length;
+
+            // If count increased, we have a new notification
+            if (currentCount > previousCountRef.current && previousCountRef.current > 0) {
+                // Find the newest notification (sort by createdAt)
+                const allNotifs = snapshot.docs.map(doc => ({
+                    ...doc.data(),
+                    createdAt: doc.data().createdAt?.toDate?.() || new Date()
+                }));
+
+                allNotifs.sort((a, b) => b.createdAt - a.createdAt);
+                const newest = allNotifs[0];
+
+                if (newest) {
+                    // Show toast for new notification
+                    addToast({
+                        title: newest.title,
+                        body: newest.body,
+                        type: newest.type,
+                        link: newest.link
+                    });
+
+                    // Also trigger browser notification if permission granted
+                    triggerBrowserNotification(newest.title, newest.body);
                 }
-            };
+            }
 
-            setupNotifications();
+            previousCountRef.current = currentCount;
+        }, (error) => {
+            console.error('Error listening for notifications:', error);
+        });
+
+        return () => unsubscribe();
+    }, [user?.id, addToast]);
+
+    // Trigger browser notification
+    const triggerBrowserNotification = (title, body) => {
+        if (!('Notification' in window)) return;
+
+        if (Notification.permission === 'granted') {
+            new Notification(title, {
+                body,
+                icon: '/logo192.png',
+                badge: '/logo192.png',
+                tag: 'project-manager-notification',
+                renotify: true
+            });
         }
-    }, [user]);
+    };
 
-    // Handle foreground messages
-    useEffect(() => {
-        onMessageListener()
-            .then((payload) => {
-                console.log('Message Received:', payload);
-                setNotification({
-                    title: payload.notification?.title,
-                    body: payload.notification?.body,
-                });
-                setShowNotification(true);
-
-                // Auto hide after 5 seconds
-                setTimeout(() => setShowNotification(false), 5000);
-            })
-            .catch((err) => console.log('failed: ', err));
-    });
+    // Get icon for notification type
+    const getNotificationIcon = (type) => {
+        switch (type) {
+            case 'project': return '📁';
+            case 'video': return '🎬';
+            case 'script': return '📝';
+            case 'postproduction': return '🎞️';
+            default: return '🔔';
+        }
+    };
 
     return (
-        <NotificationContext.Provider value={{ notification }}>
+        <NotificationContext.Provider value={{ addToast, removeToast }}>
             {children}
-            {/* Custom Toast Notification Component */}
-            {showNotification && (
-                <div
-                    className="notification-toast animate-fade-in"
-                    style={{
-                        position: 'fixed',
-                        top: '20px',
-                        right: '20px',
-                        backgroundColor: 'var(--bg-card)',
-                        border: '1px solid var(--border-color)',
-                        borderLeft: '4px solid var(--accent-color)',
-                        borderRadius: '12px',
-                        padding: '1rem',
-                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
-                        zIndex: 9999,
-                        display: 'flex',
-                        gap: '1rem',
-                        maxWidth: '350px',
-                        marginRight: '10px' // Mobile safe area
-                    }}
-                >
-                    <div style={{
-                        background: 'rgba(59, 130, 246, 0.1)',
-                        padding: '0.75rem',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: 'fit-content'
-                    }}>
-                        <Bell size={20} color="var(--accent-color)" />
-                    </div>
-                    <div>
-                        <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.95rem' }}>{notification.title}</h4>
-                        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                            {notification.body}
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => setShowNotification(false)}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--text-secondary)',
-                            cursor: 'pointer',
-                            padding: '0.25rem',
-                            height: 'fit-content'
-                        }}
-                    >
-                        ×
-                    </button>
-                </div>
-            )}
+
+            {/* Toast Container */}
+            <div className="toast-container">
+                {toasts.map((toast, index) => (
+                    <ToastItem
+                        key={toast.id}
+                        toast={toast}
+                        index={index}
+                        onClose={() => removeToast(toast.id)}
+                        getIcon={getNotificationIcon}
+                    />
+                ))}
+            </div>
         </NotificationContext.Provider>
     );
 };
+
+// Separate Toast Item Component
+const ToastItem = ({ toast, index, onClose, getIcon }) => {
+    const navigate = useNavigate();
+    const [isExiting, setIsExiting] = useState(false);
+
+    const handleClose = () => {
+        setIsExiting(true);
+        setTimeout(() => onClose(), 300);
+    };
+
+    const handleClick = () => {
+        if (toast.link) {
+            navigate(toast.link);
+            handleClose();
+        }
+    };
+
+    return (
+        <div
+            className={`toast-item ${isExiting ? 'toast-exit' : 'toast-enter'}`}
+            style={{ '--toast-index': index }}
+        >
+            <div className="toast-icon">
+                {getIcon(toast.type)}
+            </div>
+            <div className="toast-content" onClick={handleClick}>
+                <div className="toast-title">{toast.title}</div>
+                <div className="toast-body">{toast.body}</div>
+                {toast.link && (
+                    <div className="toast-link">
+                        <ExternalLink size={12} />
+                        Click to view
+                    </div>
+                )}
+            </div>
+            <button className="toast-close" onClick={handleClose}>
+                <X size={18} />
+            </button>
+            <div className="toast-progress"></div>
+        </div>
+    );
+};
+
+export default NotificationContext;

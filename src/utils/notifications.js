@@ -5,7 +5,7 @@ import { collection, addDoc, serverTimestamp, getDocs, query, where } from 'fire
  * Send a notification to all users
  * Saves to Firestore and triggers browser notification if user is online
  */
-export const sendNotificationToAll = async ({ title, body, type, link = null, excludeUserId = null }) => {
+export const sendNotificationToAll = async ({ title, body, type, link = null }) => {
     try {
         // Fetch all active users
         const usersQuery = query(collection(db, 'users'), where('isActive', '!=', false));
@@ -15,9 +15,7 @@ export const sendNotificationToAll = async ({ title, body, type, link = null, ex
 
         usersSnapshot.docs.forEach(doc => {
             const userId = doc.id;
-            // Optionally exclude the user who triggered the action
-            if (excludeUserId && userId === excludeUserId) return;
-
+            // Send to ALL users including the creator
             notifications.push({
                 userId,
                 title,
@@ -102,42 +100,38 @@ export const triggerBrowserNotification = (title, body) => {
 /**
  * Pre-built notification senders for common events
  */
-export const notifyNewProject = async (projectName, createdBy = null) => {
+export const notifyNewProject = async (projectName) => {
     return sendNotificationToAll({
         title: '📁 New Project Created',
         body: `Project "${projectName}" has been created.`,
         type: 'project',
-        link: '/projects',
-        excludeUserId: createdBy
+        link: '/projects'
     });
 };
 
-export const notifyVideoAssigned = async (videoName, projectName, createdBy = null) => {
+export const notifyVideoAssigned = async (videoName, projectName) => {
     return sendNotificationToAll({
         title: '🎬 New Video Assigned',
         body: `Video "${videoName}" added to project "${projectName}".`,
         type: 'video',
-        link: '/videos',
-        excludeUserId: createdBy
+        link: '/videos'
     });
 };
 
-export const notifyScriptAssigned = async (clientName, contentType, createdBy = null) => {
+export const notifyScriptAssigned = async (clientName, contentType) => {
     return sendNotificationToAll({
         title: '📝 New Script Assigned',
         body: `New ${contentType || 'script'} for ${clientName} has been created.`,
         type: 'script',
-        link: '/scripts',
-        excludeUserId: createdBy
+        link: '/scripts'
     });
 };
 
-export const notifyPostProductionAssigned = async (videoName, editor, createdBy = null) => {
+export const notifyPostProductionAssigned = async (videoName, editor) => {
     return sendNotificationToAll({
         title: '🎞️ Post-Production Assigned',
         body: `"${videoName}" assigned to ${editor} for editing.`,
         type: 'postproduction',
-        link: '/post-productions',
-        excludeUserId: createdBy
+        link: '/post-productions'
     });
 };

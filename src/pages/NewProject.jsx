@@ -121,7 +121,7 @@ const NewProject = () => {
             await addDoc(collection(db, 'projects'), projectData);
 
             // Send notification to all users
-            await notifyNewProject(formData.projectName, user?.id);
+            await notifyNewProject(formData.projectName);
 
             // Invalidate cache so dashboard fetches fresh data
             invalidateProjects();
