@@ -4,6 +4,8 @@ import { ArrowLeft, Loader2, Video, FileText } from 'lucide-react';
 import { db } from '../firebase.js';
 import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
+import { notifyVideoAssigned } from '../utils/notifications';
 
 const videoTypeOptions = [
     'Outlet Video',
@@ -34,6 +36,7 @@ const NewVideo = () => {
     const { id } = useParams(); // For edit mode
     const isEditMode = Boolean(id);
     const { invalidateVideos } = useData();
+    const { user } = useAuth();
 
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(isEditMode);

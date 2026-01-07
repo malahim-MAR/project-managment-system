@@ -4,6 +4,8 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { db } from '../firebase.js';
 import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
+import { notifyNewProject } from '../utils/notifications';
 
 const preProductionTeamOptions = [
     { id: 1, name: 'Zaviar Zarhan' },
@@ -21,6 +23,7 @@ const postProductionTeamOptions = [
 const NewProject = () => {
     const navigate = useNavigate();
     const { invalidateProjects } = useData();
+    const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [clients, setClients] = useState([]);
     const [formData, setFormData] = useState({
@@ -116,6 +119,10 @@ const NewProject = () => {
             };
 
             await addDoc(collection(db, 'projects'), projectData);
+
+            // Send notification to all users
+            await notifyNewProject(formData.projectName, user?.id);
+
             // Invalidate cache so dashboard fetches fresh data
             invalidateProjects();
             navigate('/projects');

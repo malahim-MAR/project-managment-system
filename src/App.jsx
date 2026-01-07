@@ -1,8 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { DataProvider } from './context/DataContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
-import Home from './pages/Home';
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ProjectDetails from './pages/ProjectDetails';
 import NewProject from './pages/NewProject';
@@ -12,29 +13,211 @@ import NewVideo from './pages/NewVideo';
 import AllScripts from './pages/AllScripts';
 import NewScript from './pages/NewScript';
 import AllPostProductions from './pages/AllPostProductions';
+import ManageUsers from './pages/ManageUsers';
+
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: 'var(--bg-primary)',
+        color: 'var(--text-secondary)'
+      }}>
+        <div className="spin" style={{
+          width: '40px',
+          height: '40px',
+          border: '3px solid var(--border-color)',
+          borderTopColor: 'var(--accent-color)',
+          borderRadius: '50%'
+        }}></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+// Admin Route Component
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, isAdmin, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: 'var(--bg-primary)',
+        color: 'var(--text-secondary)'
+      }}>
+        <div className="spin" style={{
+          width: '40px',
+          height: '40px',
+          border: '3px solid var(--border-color)',
+          borderTopColor: 'var(--accent-color)',
+          borderRadius: '50%'
+        }}></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!isAdmin()) {
+    return <Navigate to="/projects" replace />;
+  }
+
+  return children;
+};
+
+// Public Route (redirects to dashboard if already logged in)
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: 'var(--bg-primary)',
+        color: 'var(--text-secondary)'
+      }}>
+        <div className="spin" style={{
+          width: '40px',
+          height: '40px',
+          border: '3px solid var(--border-color)',
+          borderTopColor: 'var(--accent-color)',
+          borderRadius: '50%'
+        }}></div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/projects" replace />;
+  }
+
+  return children;
+};
+
+function AppRoutes() {
+  return (
+    <Routes>
+      {/* Public Route - Login */}
+      <Route path="/login" element={
+        <PublicRoute>
+          <Login />
+        </PublicRoute>
+      } />
+
+      {/* Protected Routes */}
+      <Route path="/" element={<Navigate to="/projects" replace />} />
+
+      <Route path="/projects" element={
+        <ProtectedRoute>
+          <Layout><Dashboard /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/projects/new" element={
+        <ProtectedRoute>
+          <Layout><NewProject /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/projects/edit/:id" element={
+        <ProtectedRoute>
+          <Layout><EditProject /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/projects/:id" element={
+        <ProtectedRoute>
+          <Layout><ProjectDetails /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/videos" element={
+        <ProtectedRoute>
+          <Layout><AllVideos /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/videos/new" element={
+        <ProtectedRoute>
+          <Layout><NewVideo /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/videos/edit/:id" element={
+        <ProtectedRoute>
+          <Layout><NewVideo /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/scripts" element={
+        <ProtectedRoute>
+          <Layout><AllScripts /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/scripts/new" element={
+        <ProtectedRoute>
+          <Layout><NewScript /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/scripts/edit/:id" element={
+        <ProtectedRoute>
+          <Layout><NewScript /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/post-productions" element={
+        <ProtectedRoute>
+          <Layout><AllPostProductions /></Layout>
+        </ProtectedRoute>
+      } />
+
+      {/* Admin Only Route */}
+      <Route path="/manage-users" element={
+        <AdminRoute>
+          <Layout><ManageUsers /></Layout>
+        </AdminRoute>
+      } />
+    </Routes>
+  );
+}
+
+// ... imports
+import { NotificationProvider } from './context/NotificationContext';
 
 function App() {
   return (
-    <DataProvider>
-      <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Navigate to="/projects" replace />} />
-            <Route path="/projects" element={<Dashboard />} />
-            <Route path="/projects/new" element={<NewProject />} />
-            <Route path="/projects/edit/:id" element={<EditProject />} />
-            <Route path="/projects/:id" element={<ProjectDetails />} />
-            <Route path="/videos" element={<AllVideos />} />
-            <Route path="/videos/new" element={<NewVideo />} />
-            <Route path="/videos/edit/:id" element={<NewVideo />} />
-            <Route path="/scripts" element={<AllScripts />} />
-            <Route path="/scripts/new" element={<NewScript />} />
-            <Route path="/scripts/edit/:id" element={<NewScript />} />
-            <Route path="/post-productions" element={<AllPostProductions />} />
-          </Routes>
-        </Layout>
-      </Router>
-    </DataProvider>
+    <AuthProvider>
+      <DataProvider>
+        <NotificationProvider>
+          <Router>
+            <AppRoutes />
+          </Router>
+        </NotificationProvider>
+      </DataProvider>
+    </AuthProvider>
   );
 }
 
