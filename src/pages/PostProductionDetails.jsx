@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { db } from '../firebase.js';
 import { doc, getDoc, updateDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { uploadImage, getThumbnailUrl } from '../utils/cloudinary';
+import '../utils/cloudinaryTest'; // Auto-runs config test
 import {
     ArrowLeft,
     Video,
@@ -16,7 +18,10 @@ import {
     MessageCircle,
     Trash2,
     FolderGit2,
-    Film
+    Film,
+    Image as ImageIcon,
+    Upload,
+    X
 } from 'lucide-react';
 
 const PostProductionDetails = () => {
@@ -31,13 +36,22 @@ const PostProductionDetails = () => {
     const [submittingComment, setSubmittingComment] = useState(false);
     const [deletingCommentId, setDeletingCommentId] = useState(null);
 
+    // Image upload states
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const fileInputRef = useRef(null);
+    const commentInputRef = useRef(null);
+
     useEffect(() => {
         fetchPostProductionDetails();
     }, [id]);
 
+
     const fetchPostProductionDetails = async () => {
         try {
-            const docRef = await getDoc(doc(db, 'postProductions', id));
+            const docRef = await getDoc(doc(db, 'postproductions', id));
             if (docRef.exists()) {
                 setPostProd({ id: docRef.id, ...docRef.data() });
             } else {
@@ -50,21 +64,98 @@ const PostProductionDetails = () => {
         }
     };
 
+    // Image handling functions
+    const handleImageSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            handleFileSelection(file);
+        }
+    };
+
+    const handleFileSelection = (file) => {
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            alert('Invalid file type. Please upload a JPG, PNG, GIF, or WebP image.');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File too large. Maximum size is 5MB.');
+            return;
+        }
+
+        setSelectedImage(file);
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setImagePreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handlePaste = (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                e.preventDefault();
+                const file = items[i].getAsFile();
+                if (file) {
+                    handleFileSelection(file);
+                }
+                break;
+            }
+        }
+    };
+
+    const removeImage = () => {
+        setSelectedImage(null);
+        setImagePreview(null);
+        setUploadProgress(0);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
     const handleAddComment = async (e) => {
         e.preventDefault();
-        if (!newComment.trim()) return;
+        if (!newComment.trim() && !selectedImage) return;
 
         setSubmittingComment(true);
         try {
+            let imageUrl = null;
+
+            // Upload image if selected
+            if (selectedImage) {
+                setUploadingImage(true);
+                try {
+                    const result = await uploadImage(selectedImage, {
+                        folder: 'post-production-comments',
+                        onProgress: setUploadProgress
+                    });
+                    imageUrl = result.url;
+                } catch (uploadError) {
+                    console.error('Image upload error:', uploadError);
+                    alert('Failed to upload image. The comment will be posted without the image.');
+                } finally {
+                    setUploadingImage(false);
+                }
+            }
+
             const comment = {
                 id: Date.now().toString(),
                 text: newComment.trim(),
+                imageUrl: imageUrl || null,
                 authorId: user?.id || 'anonymous',
                 authorName: user?.name || 'Anonymous',
                 createdAt: new Date().toISOString()
             };
 
-            await updateDoc(doc(db, 'postProductions', id), {
+            await updateDoc(doc(db, 'postproductions', id), {
                 comments: arrayUnion(comment),
                 updatedAt: serverTimestamp()
             });
@@ -79,6 +170,7 @@ const PostProductionDetails = () => {
             ));
 
             setNewComment('');
+            removeImage();
         } catch (error) {
             console.error('Error adding comment:', error);
             alert('Failed to add comment. Please try again.');
@@ -94,7 +186,7 @@ const PostProductionDetails = () => {
         try {
             const updatedComments = (postProd.comments || []).filter(c => c.id !== commentId);
 
-            await updateDoc(doc(db, 'postProductions', id), {
+            await updateDoc(doc(db, 'postproductions', id), {
                 comments: updatedComments,
                 updatedAt: serverTimestamp()
             });
@@ -277,21 +369,112 @@ const PostProductionDetails = () => {
                             <div className="comment-avatar">
                                 {user?.name?.charAt(0).toUpperCase() || 'U'}
                             </div>
-                            <input
-                                type="text"
-                                value={newComment}
-                                onChange={(e) => setNewComment(e.target.value)}
-                                placeholder="Add a comment..."
-                                className="comment-input"
-                                disabled={submittingComment}
-                            />
-                            <button
-                                type="submit"
-                                className="btn btn-primary comment-submit"
-                                disabled={!newComment.trim() || submittingComment}
-                            >
-                                {submittingComment ? <Loader2 size={18} className="spin" /> : <Send size={18} />}
-                            </button>
+                            <div style={{ flex: 1 }}>
+                                <textarea
+                                    ref={commentInputRef}
+                                    value={newComment}
+                                    onChange={(e) => setNewComment(e.target.value)}
+                                    onPaste={handlePaste}
+                                    placeholder="Add a comment... (or paste an image)"
+                                    className="comment-input"
+                                    disabled={submittingComment}
+                                    style={{
+                                        width: '100%',
+                                        minHeight: '60px',
+                                        resize: 'vertical',
+                                        padding: '0.75rem',
+                                        borderRadius: '8px',
+                                        border: '1px solid var(--border-color)',
+                                        backgroundColor: 'var(--bg-card)',
+                                        color: 'var(--text-primary)',
+                                        fontFamily: 'inherit',
+                                        fontSize: '0.9rem'
+                                    }}
+                                />
+
+                                {/* Image Preview */}
+                                {imagePreview && (
+                                    <div style={{
+                                        marginTop: '0.75rem',
+                                        position: 'relative',
+                                        display: 'inline-block'
+                                    }}>
+                                        <img
+                                            src={imagePreview}
+                                            alt="Preview"
+                                            style={{
+                                                maxWidth: '200px',
+                                                maxHeight: '200px',
+                                                borderRadius: '8px',
+                                                border: '1px solid var(--border-color)'
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={removeImage}
+                                            style={{
+                                                position: 'absolute',
+                                                top: '4px',
+                                                right: '4px',
+                                                background: 'var(--danger)',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '50%',
+                                                width: '24px',
+                                                height: '24px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                cursor: 'pointer'
+                                            }}
+                                            title="Remove image"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                        {uploadingImage && (
+                                            <div style={{
+                                                marginTop: '0.5rem',
+                                                fontSize: '0.85rem',
+                                                color: 'var(--accent-color)'
+                                            }}>
+                                                Uploading... {uploadProgress}%
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Action Buttons */}
+                                <div style={{
+                                    display: 'flex',
+                                    gap: '0.5rem',
+                                    marginTop: '0.75rem'
+                                }}>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageSelect}
+                                        style={{ display: 'none' }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="btn btn-outline"
+                                        disabled={submittingComment}
+                                        style={{ padding: '0.5rem 1rem' }}
+                                    >
+                                        <ImageIcon size={16} /> Upload Image
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary comment-submit"
+                                        disabled={(!newComment.trim() && !selectedImage) || submittingComment}
+                                        style={{ padding: '0.5rem 1rem' }}
+                                    >
+                                        {submittingComment ? <Loader2 size={18} className="spin" /> : <><Send size={16} /> Post</>}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </form>
 
@@ -314,7 +497,30 @@ const PostProductionDetails = () => {
                                             <span className="comment-author">{comment.authorName}</span>
                                             <span className="comment-time">{formatCommentDate(comment.createdAt)}</span>
                                         </div>
-                                        <p className="comment-text">{comment.text}</p>
+                                        {comment.text && <p className="comment-text">{comment.text}</p>}
+                                        {comment.imageUrl && (
+                                            <a
+                                                href={comment.imageUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{
+                                                    display: 'block',
+                                                    marginTop: '0.75rem'
+                                                }}
+                                            >
+                                                <img
+                                                    src={getThumbnailUrl(comment.imageUrl, 400)}
+                                                    alt="Comment attachment"
+                                                    style={{
+                                                        maxWidth: '400px',
+                                                        maxHeight: '300px',
+                                                        borderRadius: '8px',
+                                                        border: '1px solid var(--border-color)',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                />
+                                            </a>
+                                        )}
                                     </div>
                                     {(user?.id === comment.authorId || user?.role === 'admin') && (
                                         <button
