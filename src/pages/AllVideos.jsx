@@ -22,7 +22,8 @@ import {
     Save,
     X,
     Check,
-    RotateCcw
+    RotateCcw,
+    Eye
 } from 'lucide-react';
 
 const videoTypeOptions = [
@@ -664,8 +665,13 @@ const AllVideos = () => {
                                             {video.videoType || 'N/A'}
                                         </span>
                                     </td>
-                                    <td style={{ fontWeight: 500, color: 'var(--accent-color)' }}>
-                                        {video.videoName || 'N/A'}
+                                    <td>
+                                        <Link
+                                            to={`/videos/${video.id}`}
+                                            style={{ fontWeight: 500, color: 'var(--accent-color)' }}
+                                        >
+                                            {video.videoName || 'Untitled Video'}
+                                        </Link>
                                     </td>
                                     <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
                                         {video.product || 'N/A'}
@@ -719,6 +725,19 @@ const AllVideos = () => {
                                     </td>
                                     <td>
                                         <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <Link
+                                                to={`/videos/${video.id}`}
+                                                className="btn"
+                                                style={{
+                                                    padding: '0.4rem',
+                                                    backgroundColor: 'var(--bg-card)',
+                                                    border: '1px solid var(--border-color)',
+                                                    color: 'var(--accent-color)'
+                                                }}
+                                                title="View Details"
+                                            >
+                                                <Eye size={14} />
+                                            </Link>
                                             <Link
                                                 to={`/videos/edit/${video.id}`}
                                                 className="btn"

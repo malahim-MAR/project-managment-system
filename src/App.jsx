@@ -10,9 +10,12 @@ import NewProject from './pages/NewProject';
 import EditProject from './pages/EditProject';
 import AllVideos from './pages/AllVideos';
 import NewVideo from './pages/NewVideo';
+import VideoDetails from './pages/VideoDetails';
 import AllScripts from './pages/AllScripts';
 import NewScript from './pages/NewScript';
 import AllPostProductions from './pages/AllPostProductions';
+import PostProductionDetails from './pages/PostProductionDetails';
+import AllComments from './pages/AllComments';
 import ManageUsers from './pages/ManageUsers';
 
 // Protected Route Component
@@ -170,6 +173,12 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
 
+      <Route path="/videos/:id" element={
+        <ProtectedRoute>
+          <Layout><VideoDetails /></Layout>
+        </ProtectedRoute>
+      } />
+
       <Route path="/scripts" element={
         <ProtectedRoute>
           <Layout><AllScripts /></Layout>
@@ -191,6 +200,18 @@ function AppRoutes() {
       <Route path="/post-productions" element={
         <ProtectedRoute>
           <Layout><AllPostProductions /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/post-productions/:id" element={
+        <ProtectedRoute>
+          <Layout><PostProductionDetails /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/comments" element={
+        <ProtectedRoute>
+          <Layout><AllComments /></Layout>
         </ProtectedRoute>
       } />
 

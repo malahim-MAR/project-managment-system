@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { db } from '../firebase.js';
 import { collection, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { useData } from '../context/DataContext';
@@ -16,7 +17,8 @@ import {
     Calendar,
     Video,
     X,
-    Save
+    Save,
+    Eye
 } from 'lucide-react';
 
 const editorOptions = ['Muzammil Ali', 'Yasir Ghani', 'Zaviar Zarhan'];
@@ -441,6 +443,19 @@ const AllPostProductions = () => {
                                     <td>{item.revisionDate || '-'}</td>
                                     <td>
                                         <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <Link
+                                                to={`/post-productions/${item.id}`}
+                                                className="btn"
+                                                style={{
+                                                    padding: '0.4rem',
+                                                    background: 'var(--bg-card)',
+                                                    border: '1px solid var(--border-color)',
+                                                    color: 'var(--accent-color)'
+                                                }}
+                                                title="View Details"
+                                            >
+                                                <Eye size={14} />
+                                            </Link>
                                             <button
                                                 onClick={() => handleOpenModal(item)}
                                                 className="btn"
@@ -450,6 +465,7 @@ const AllPostProductions = () => {
                                                     border: '1px solid var(--border-color)',
                                                     color: 'var(--text-primary)'
                                                 }}
+                                                title="Edit"
                                             >
                                                 <Pencil size={14} />
                                             </button>
@@ -458,6 +474,7 @@ const AllPostProductions = () => {
                                                 onClick={() => handleDelete(item.id)}
                                                 style={{ padding: '0.4rem', background: 'var(--danger)', color: 'white' }}
                                                 disabled={deletingId === item.id}
+                                                title="Delete"
                                             >
                                                 {deletingId === item.id ? <Loader2 size={14} className="spin" /> : <Trash2 size={14} />}
                                             </button>

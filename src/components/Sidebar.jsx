@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Film, Clapperboard, FileText, Video, Users, LogOut, User } from 'lucide-react';
+import { LayoutDashboard, Film, Clapperboard, FileText, Video, Users, LogOut, User, MessageCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 
@@ -67,6 +67,13 @@ const Sidebar = () => {
                 >
                     <Video size={20} />
                     <span>Post Productions</span>
+                </Link>
+                <Link
+                    to="/comments"
+                    className={`sidebar-nav-link ${isActive('/comments') ? 'active' : ''}`}
+                >
+                    <MessageCircle size={20} />
+                    <span>All Comments</span>
                 </Link>
 
                 {/* Admin Section */}
