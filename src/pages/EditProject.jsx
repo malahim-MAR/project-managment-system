@@ -30,7 +30,6 @@ const EditProject = () => {
         clientName: '',
         startDate: '',
         noOfVideoAssign: '',
-        noOfVideosDeliver: '',
         preProductionTeam: [],
         postProductionTeam: [],
         dateOfDelivery: '',
@@ -75,7 +74,6 @@ const EditProject = () => {
                     clientName: data.clientName || '',
                     startDate: data.startDate || '',
                     noOfVideoAssign: data.noOfVideoAssign?.toString() || '',
-                    noOfVideosDeliver: data.noOfVideosDeliver?.toString() || '',
                     preProductionTeam: preTeamIds,
                     postProductionTeam: postTeamIds,
                     dateOfDelivery: data.dateOfDelivery || '',
@@ -144,7 +142,6 @@ const EditProject = () => {
                 clientName: trimmedClient,
                 startDate: formData.startDate,
                 noOfVideoAssign: parseInt(formData.noOfVideoAssign) || 0,
-                noOfVideosDeliver: parseInt(formData.noOfVideosDeliver) || 0,
                 preProductionTeam: preTeamNames,
                 postProductionTeam: postTeamNames,
                 dateOfDelivery: formData.dateOfDelivery,
@@ -246,18 +243,7 @@ const EditProject = () => {
                             />
                         </div>
 
-                        {/* No of Videos Deliver */}
-                        <div className="form-group">
-                            <label>No. of Videos Delivered</label>
-                            <input
-                                type="number"
-                                name="noOfVideosDeliver"
-                                value={formData.noOfVideosDeliver}
-                                onChange={handleChange}
-                                placeholder="0"
-                                min="0"
-                            />
-                        </div>
+
 
                         {/* Pre-Production Team */}
                         <div className="form-group" style={{ gridColumn: '1 / -1' }}>

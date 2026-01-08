@@ -466,7 +466,7 @@ const ProjectDetails = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
                             <span className="badge badge-purple" title="Total Videos"><Film size={12} style={{ marginRight: '4px' }} /> Total: {videos.length}</span>
                             <span className="badge badge-blue" title="Videos Assigned"><Video size={12} style={{ marginRight: '4px' }} /> Assigned: {project.noOfVideoAssign || 0}</span>
-                            <span className="badge badge-green" title="Videos Delivered"><Film size={12} style={{ marginRight: '4px' }} /> Delivered: {project.noOfVideosDeliver || 0}</span>
+                            <span className="badge badge-green" title="Videos Delivered"><Film size={12} style={{ marginRight: '4px' }} /> Delivered: {completedVideos}</span>
                         </div>
                     </div>
 

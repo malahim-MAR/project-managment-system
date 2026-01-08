@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { db } from '../firebase.js';
 import { deleteDoc, doc } from 'firebase/firestore';
@@ -6,12 +6,25 @@ import { useData } from '../context/DataContext';
 import { FolderGit2, ExternalLink, Plus, Loader2, Pencil, Trash2, Link as LinkIcon, Calendar, Video } from 'lucide-react';
 
 const Dashboard = () => {
-    const { projects, loadingProjects, fetchProjects, updateProjectsCache } = useData();
+    const { projects, videos, loadingProjects, loadingVideos, fetchProjects, fetchVideos, updateProjectsCache } = useData();
     const [deleting, setDeleting] = useState(null);
 
     useEffect(() => {
         fetchProjects();
-    }, [fetchProjects]);
+        fetchVideos();
+    }, [fetchProjects, fetchVideos]);
+
+    // Calculate completed videos count per project
+    const getDeliveredCount = useMemo(() => {
+        if (!videos) return () => 0;
+        const countMap = {};
+        videos.forEach(video => {
+            if (video.projectId && video.shootStatus === 'Completed') {
+                countMap[video.projectId] = (countMap[video.projectId] || 0) + 1;
+            }
+        });
+        return (projectId) => countMap[projectId] || 0;
+    }, [videos]);
 
     const handleDelete = async (projectId, projectName) => {
         if (!window.confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
@@ -155,7 +168,7 @@ const Dashboard = () => {
                                     <td>
                                         <span style={{ color: 'var(--text-primary)' }}>{project.noOfVideoAssign || 0}</span>
                                         <span style={{ color: 'var(--text-secondary)' }}> / </span>
-                                        <span style={{ color: 'var(--success)' }}>{project.noOfVideosDeliver || 0}</span>
+                                        <span style={{ color: 'var(--success)' }}>{getDeliveredCount(project.id)}</span>
                                     </td>
                                     <td>
                                         <span className={`badge ${getStatusColor(project.status)}`}>

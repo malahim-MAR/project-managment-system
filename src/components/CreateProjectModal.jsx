@@ -14,7 +14,6 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
         projectName: '',
         startDate: '',
         noOfVideoAssign: '',
-        noOfVideosDeliver: '',
         preProductionTeam: [],
         postProductionTeam: [],
         dateOfDelivery: '',
@@ -47,7 +46,6 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
             projectName: '',
             startDate: '',
             noOfVideoAssign: '',
-            noOfVideosDeliver: '',
             preProductionTeam: [],
             postProductionTeam: [],
             dateOfDelivery: '',
@@ -145,18 +143,7 @@ const CreateProjectModal = ({ isOpen, onClose, onSubmit }) => {
                             />
                         </div>
 
-                        {/* No of Videos Deliver */}
-                        <div className="form-group">
-                            <label>No. of Videos Delivered</label>
-                            <input
-                                type="number"
-                                name="noOfVideosDeliver"
-                                value={formData.noOfVideosDeliver}
-                                onChange={handleChange}
-                                placeholder="0"
-                                min="0"
-                            />
-                        </div>
+
 
                         {/* Pre-Production Team */}
                         <div className="form-group" style={{ gridColumn: '1 / -1' }}>
