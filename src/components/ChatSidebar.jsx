@@ -45,8 +45,10 @@ const ChatSidebar = () => {
     const [cursorPosition, setCursorPosition] = useState(0);
     const [sending, setSending] = useState(false);
 
+    const chatSidebarRef = useRef(null);
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
+    const inputAreaRef = useRef(null);
     const mentionDropdownRef = useRef(null);
     const referenceDropdownRef = useRef(null);
 
@@ -70,6 +72,45 @@ const ChatSidebar = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // Handle mobile keyboard visibility - scroll input into view
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleFocus = () => {
+            // Small delay to let the keyboard appear
+            setTimeout(() => {
+                if (inputRef.current) {
+                    inputRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }
+            }, 300);
+        };
+
+        const inputElement = inputRef.current;
+        if (inputElement) {
+            inputElement.addEventListener('focus', handleFocus);
+        }
+
+        // Handle visual viewport resize (when keyboard opens on mobile)
+        const handleResize = () => {
+            if (inputRef.current && document.activeElement === inputRef.current) {
+                inputRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }
+        };
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', handleResize);
+        }
+
+        return () => {
+            if (inputElement) {
+                inputElement.removeEventListener('focus', handleFocus);
+            }
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', handleResize);
+            }
+        };
+    }, [isOpen]);
 
     // Handle input change and detect @ or # symbols
     const handleInputChange = (e) => {
@@ -275,7 +316,7 @@ const ChatSidebar = () => {
             </button>
 
             {/* Chat Sidebar */}
-            <div className={`chat-sidebar ${isOpen ? 'open' : ''}`}>
+            <div ref={chatSidebarRef} className={`chat-sidebar ${isOpen ? 'open' : ''}`}>
                 {/* Header */}
                 <div className="chat-header">
                     <div className="chat-header-title">
@@ -351,7 +392,7 @@ const ChatSidebar = () => {
                 </div>
 
                 {/* Input Area */}
-                <div className="chat-input-area">
+                <div ref={inputAreaRef} className="chat-input-area">
                     {/* Quick action buttons */}
                     <div className="chat-actions">
                         <button
@@ -383,7 +424,7 @@ const ChatSidebar = () => {
                         <textarea
                             ref={inputRef}
                             className="chat-input"
-                            placeholder="Type a message... Use @ to mention, # to reference"
+                            placeholder="Type a message..."
                             value={inputValue}
                             onChange={handleInputChange}
                             onKeyDown={handleKeyPress}
