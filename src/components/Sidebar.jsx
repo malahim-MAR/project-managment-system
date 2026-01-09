@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Film, Clapperboard, FileText, Video, Users, LogOut, User, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, Film, Clapperboard, FileText, Video, Users, LogOut, User, MessageCircle, Home, FolderGit2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 
@@ -10,6 +10,9 @@ const Sidebar = () => {
     const { user, logout, isAdmin } = useAuth();
 
     const isActive = (path) => {
+        if (path === '/') {
+            return location.pathname === '/';
+        }
         return location.pathname === path || location.pathname.startsWith(`${path}/`);
     };
 
@@ -39,11 +42,19 @@ const Sidebar = () => {
                 <div className="sidebar-nav-label">Main Menu</div>
 
                 <Link
+                    to="/"
+                    className={`sidebar-nav-link ${isActive('/') ? 'active' : ''}`}
+                >
+                    <Home size={20} />
+                    <span>Dashboard</span>
+                </Link>
+
+                <Link
                     to="/projects"
                     className={`sidebar-nav-link ${isActive('/projects') ? 'active' : ''}`}
                 >
-                    <LayoutDashboard size={20} />
-                    <span>Projects Dashboard</span>
+                    <FolderGit2 size={20} />
+                    <span>All Projects</span>
                 </Link>
 
                 <Link

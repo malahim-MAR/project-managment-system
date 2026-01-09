@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     Menu,
     X,
-    LayoutDashboard,
+    Home,
+    FolderGit2,
     Film,
     FileText,
     Video,
@@ -60,6 +61,9 @@ const MobileNav = () => {
     }, [isOpen]);
 
     const isActive = (path) => {
+        if (path === '/') {
+            return location.pathname === '/';
+        }
         return location.pathname === path || location.pathname.startsWith(`${path}/`);
     };
 
@@ -69,7 +73,8 @@ const MobileNav = () => {
     };
 
     const navLinks = [
-        { path: '/projects', icon: LayoutDashboard, label: 'Projects Dashboard' },
+        { path: '/', icon: Home, label: 'Dashboard' },
+        { path: '/projects', icon: FolderGit2, label: 'All Projects' },
         { path: '/videos', icon: Film, label: 'All Videos' },
         { path: '/scripts', icon: FileText, label: 'All Scripts' },
         { path: '/post-productions', icon: Video, label: 'Post Productions' },

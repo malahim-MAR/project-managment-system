@@ -4,6 +4,7 @@ import { DataProvider } from './context/DataContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import ProjectDetails from './pages/ProjectDetails';
 import NewProject from './pages/NewProject';
@@ -129,8 +130,14 @@ function AppRoutes() {
       } />
 
       {/* Protected Routes */}
-      <Route path="/" element={<Navigate to="/projects" replace />} />
+      {/* Home Dashboard */}
+      <Route path="/" element={
+        <ProtectedRoute>
+          <Layout><Home /></Layout>
+        </ProtectedRoute>
+      } />
 
+      {/* Projects List */}
       <Route path="/projects" element={
         <ProtectedRoute>
           <Layout><Dashboard /></Layout>
