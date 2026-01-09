@@ -1,5 +1,6 @@
 import React from 'react';
 import Sidebar from './Sidebar';
+import ChatSidebar from './ChatSidebar';
 
 const Layout = ({ children }) => {
     return (
@@ -8,6 +9,7 @@ const Layout = ({ children }) => {
             <main className="main-content">
                 {children}
             </main>
+            <ChatSidebar />
         </div>
     );
 };

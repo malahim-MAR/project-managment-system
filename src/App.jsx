@@ -226,6 +226,7 @@ function AppRoutes() {
 }
 
 import { NotificationProvider } from './context/NotificationContext';
+import { ChatProvider } from './context/ChatContext';
 
 function App() {
   return (
@@ -233,7 +234,9 @@ function App() {
       <DataProvider>
         <Router>
           <NotificationProvider>
-            <AppRoutes />
+            <ChatProvider>
+              <AppRoutes />
+            </ChatProvider>
           </NotificationProvider>
         </Router>
       </DataProvider>
@@ -242,3 +245,4 @@ function App() {
 }
 
 export default App;
+

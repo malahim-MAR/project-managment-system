@@ -139,6 +139,7 @@ const NotificationBell = () => {
             case 'video': return '🎬';
             case 'script': return '📝';
             case 'postproduction': return '🎞️';
+            case 'chat': return '💬';
             default: return '🔔';
         }
     };
@@ -149,6 +150,7 @@ const NotificationBell = () => {
             case 'video': return '#8b5cf6';
             case 'script': return '#10b981';
             case 'postproduction': return '#f59e0b';
+            case 'chat': return '#ec4899';
             default: return '#6b7280';
         }
     };
