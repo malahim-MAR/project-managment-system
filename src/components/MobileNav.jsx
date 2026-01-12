@@ -13,7 +13,8 @@ import {
     User,
     MessageCircle,
     Clapperboard,
-    Bell
+    Bell,
+    FileBarChart
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
@@ -79,6 +80,7 @@ const MobileNav = () => {
         { path: '/scripts', icon: FileText, label: 'All Scripts' },
         { path: '/post-productions', icon: Video, label: 'Post Productions' },
         { path: '/comments', icon: MessageCircle, label: 'All Comments' },
+        { path: '/reports', icon: FileBarChart, label: 'Reports' },
     ];
 
     return (

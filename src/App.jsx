@@ -17,6 +17,7 @@ import NewScript from './pages/NewScript';
 import AllPostProductions from './pages/AllPostProductions';
 import PostProductionDetails from './pages/PostProductionDetails';
 import AllComments from './pages/AllComments';
+import Reports from './pages/Reports';
 import ManageUsers from './pages/ManageUsers';
 
 // Protected Route Component
@@ -219,6 +220,12 @@ function AppRoutes() {
       <Route path="/comments" element={
         <ProtectedRoute>
           <Layout><AllComments /></Layout>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/reports" element={
+        <ProtectedRoute>
+          <Layout><Reports /></Layout>
         </ProtectedRoute>
       } />
 
