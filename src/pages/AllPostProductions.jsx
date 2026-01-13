@@ -18,10 +18,16 @@ import {
     Video,
     X,
     Save,
-    Eye
+    Eye,
+    Filter
 } from 'lucide-react';
 
 const editorOptions = ['Muzammil Ali', 'Yasir Ghani', 'Zaviar Zarhan'];
+
+const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 const AllPostProductions = () => {
     const {
@@ -33,6 +39,7 @@ const AllPostProductions = () => {
     // Filter State
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedEditor, setSelectedEditor] = useState('all');
+    const [selectedMonth, setSelectedMonth] = useState('all');
 
     // Modal & Form State
     const [showModal, setShowModal] = useState(false);
@@ -171,6 +178,27 @@ const AllPostProductions = () => {
         }
     };
 
+    // Extract available months
+    const availableMonths = React.useMemo(() => {
+        if (!postProductions) return [];
+        const months = new Set();
+        postProductions.forEach(item => {
+            if (item.assignDate) {
+                const date = new Date(item.assignDate);
+                if (!isNaN(date.getTime())) {
+                    const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    months.add(monthYear);
+                }
+            }
+        });
+        return Array.from(months).sort().reverse();
+    }, [postProductions]);
+
+    const getMonthLabel = (monthYear) => {
+        const [year, month] = monthYear.split('-');
+        return `${monthNames[parseInt(month) - 1]} ${year}`;
+    };
+
     // --- Filter Logic ---
     const postProductionsList = postProductions || [];
     const filteredItems = postProductionsList.filter(item => {
@@ -179,8 +207,29 @@ const AllPostProductions = () => {
             (item.videoType?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
             (item.videoProduct?.toLowerCase() || '').includes(searchQuery.toLowerCase());
         const matchEditor = selectedEditor === 'all' || item.editor === selectedEditor;
-        return matchSearch && matchEditor;
+
+        // Month filter
+        let matchMonth = true;
+        if (selectedMonth !== 'all' && item.assignDate) {
+            const date = new Date(item.assignDate);
+            if (!isNaN(date.getTime())) {
+                const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                matchMonth = monthYear === selectedMonth;
+            } else {
+                matchMonth = false;
+            }
+        }
+
+        return matchSearch && matchEditor && matchMonth;
     });
+
+    const clearFilters = () => {
+        setSearchQuery('');
+        setSelectedEditor('all');
+        setSelectedMonth('all');
+    };
+
+    const hasActiveFilters = selectedEditor !== 'all' || selectedMonth !== 'all' || searchQuery.trim() !== '';
 
     // Stats
     const totalItems = postProductionsList.length;
@@ -370,12 +419,28 @@ const AllPostProductions = () => {
                 </div>
 
                 <div className="filter-dropdown">
+                    <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                        <option value="all">All Months</option>
+                        {availableMonths.map(month => (
+                            <option key={month} value={month}>{getMonthLabel(month)}</option>
+                        ))}
+                    </select>
+                    <ChevronDown size={16} className="dropdown-icon" />
+                </div>
+
+                <div className="filter-dropdown">
                     <select value={selectedEditor} onChange={(e) => setSelectedEditor(e.target.value)}>
                         <option value="all">All Editors</option>
                         {editorOptions.map(e => <option key={e} value={e}>{e}</option>)}
                     </select>
                     <ChevronDown size={16} className="dropdown-icon" />
                 </div>
+
+                {hasActiveFilters && (
+                    <button onClick={clearFilters} className="btn btn-outline">
+                        <Filter size={16} /> Clear Filters
+                    </button>
+                )}
             </div>
 
             {/* Results Count */}

@@ -3,16 +3,45 @@ import { Link } from 'react-router-dom';
 import { db } from '../firebase.js';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { useData } from '../context/DataContext';
-import { FolderGit2, ExternalLink, Plus, Loader2, Pencil, Trash2, Link as LinkIcon, Calendar, Video } from 'lucide-react';
+import { FolderGit2, ExternalLink, Plus, Loader2, Pencil, Trash2, Link as LinkIcon, Calendar, Video, Search, ChevronDown, Filter } from 'lucide-react';
+
+const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 const Dashboard = () => {
     const { projects, videos, loadingProjects, loadingVideos, fetchProjects, fetchVideos, updateProjectsCache } = useData();
     const [deleting, setDeleting] = useState(null);
+    const [selectedMonth, setSelectedMonth] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedStatus, setSelectedStatus] = useState('all');
+    const [includePendingFromPreviousMonths, setIncludePendingFromPreviousMonths] = useState(true);
 
     useEffect(() => {
         fetchProjects();
         fetchVideos();
     }, [fetchProjects, fetchVideos]);
+
+    // Extract available months from projects
+    const availableMonths = useMemo(() => {
+        if (!projects) return [];
+        const months = new Set();
+        projects.forEach(project => {
+            if (project.startDate) {
+                const date = new Date(project.startDate);
+                const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                months.add(monthYear);
+            }
+        });
+        return Array.from(months).sort().reverse();
+    }, [projects]);
+
+    // Get month label for display
+    const getMonthLabel = (monthYear) => {
+        const [year, month] = monthYear.split('-');
+        return `${monthNames[parseInt(month) - 1]} ${year}`;
+    };
 
     // Calculate completed videos count per project
     const getDeliveredCount = useMemo(() => {
@@ -26,6 +55,57 @@ const Dashboard = () => {
         return (projectId) => countMap[projectId] || 0;
     }, [videos]);
 
+    // Filter projects based on selected month, status, search, and pending carryover
+    const filteredProjects = useMemo(() => {
+        if (!projects) return [];
+        let filtered = [...projects];
+
+        // Apply search filter
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            filtered = filtered.filter(project =>
+                project.name?.toLowerCase().includes(q) ||
+                project.clientName?.toLowerCase().includes(q)
+            );
+        }
+
+        // Apply status filter
+        if (selectedStatus !== 'all') {
+            filtered = filtered.filter(project => project.status === selectedStatus);
+        }
+
+        // Apply month filter with pending carryover logic
+        if (selectedMonth !== 'all') {
+            const [selectedYear, selectedMonthNum] = selectedMonth.split('-').map(Number);
+            const selectedMonthDate = new Date(selectedYear, selectedMonthNum - 1, 1);
+
+            filtered = filtered.filter(project => {
+                if (!project.startDate) return false;
+
+                const projectDate = new Date(project.startDate);
+                const projectMonthYear = `${projectDate.getFullYear()}-${String(projectDate.getMonth() + 1).padStart(2, '0')}`;
+
+                // Include if project is from the selected month
+                if (projectMonthYear === selectedMonth) {
+                    return true;
+                }
+
+                // Include pending/in-progress projects from previous months if toggle is on
+                if (includePendingFromPreviousMonths) {
+                    const isPending = project.status !== 'complete';
+                    const isFromPreviousMonth = projectDate < selectedMonthDate;
+                    if (isPending && isFromPreviousMonth) {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
+        }
+
+        return filtered;
+    }, [projects, selectedMonth, searchQuery, selectedStatus, includePendingFromPreviousMonths]);
+
     const handleDelete = async (projectId, projectName) => {
         if (!window.confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
             return;
@@ -34,7 +114,6 @@ const Dashboard = () => {
         setDeleting(projectId);
         try {
             await deleteDoc(doc(db, 'projects', projectId));
-            // Update cache directly instead of re-fetching
             updateProjectsCache(prev => prev.filter(p => p.id !== projectId));
         } catch (error) {
             console.error('Error deleting project:', error);
@@ -62,7 +141,15 @@ const Dashboard = () => {
         }
     };
 
-    // Stats (handle null projects from cache)
+    const clearFilters = () => {
+        setSelectedMonth('all');
+        setSelectedStatus('all');
+        setSearchQuery('');
+    };
+
+    const hasActiveFilters = selectedMonth !== 'all' || selectedStatus !== 'all' || searchQuery.trim() !== '';
+
+    // Stats (based on ALL projects, not filtered)
     const projectsList = projects || [];
     const totalProjects = projectsList.length;
     const inProgressProjects = projectsList.filter(p => p.status === 'in-progress').length;
@@ -127,18 +214,93 @@ const Dashboard = () => {
                 </div>
             </div>
 
+            {/* Filters Bar */}
+            <div className="filters-bar">
+                <div className="search-box">
+                    <Search size={18} className="search-icon" />
+                    <input
+                        type="text"
+                        placeholder="Search projects..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="search-input"
+                    />
+                </div>
+
+                <div className="filter-dropdown">
+                    <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                        <option value="all">All Months</option>
+                        {availableMonths.map(month => (
+                            <option key={month} value={month}>{getMonthLabel(month)}</option>
+                        ))}
+                    </select>
+                    <ChevronDown size={16} className="dropdown-icon" />
+                </div>
+
+                <div className="filter-dropdown">
+                    <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+                        <option value="all">All Statuses</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="complete">Complete</option>
+                        <option value="on-hold">On Hold</option>
+                    </select>
+                    <ChevronDown size={16} className="dropdown-icon" />
+                </div>
+
+                {selectedMonth !== 'all' && (
+                    <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        cursor: 'pointer',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.9rem'
+                    }}>
+                        <input
+                            type="checkbox"
+                            checked={includePendingFromPreviousMonths}
+                            onChange={(e) => setIncludePendingFromPreviousMonths(e.target.checked)}
+                            style={{ cursor: 'pointer' }}
+                        />
+                        Include pending from previous months
+                    </label>
+                )}
+
+                {hasActiveFilters && (
+                    <button onClick={clearFilters} className="btn btn-outline">
+                        <Filter size={16} /> Clear Filters
+                    </button>
+                )}
+            </div>
+
+            {/* Results Count */}
+            <div style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+                Showing {filteredProjects.length} of {projectsList.length} projects
+                {hasActiveFilters && ' (filtered)'}
+            </div>
+
             {loadingProjects || projects === null ? (
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '4rem' }}>
                     <Loader2 size={40} className="spin" style={{ color: 'var(--accent-color)' }} />
                 </div>
-            ) : projectsList.length === 0 ? (
+            ) : filteredProjects.length === 0 ? (
                 <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
                     <FolderGit2 size={64} style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }} />
-                    <h2 style={{ marginBottom: '0.5rem' }}>No Projects Yet</h2>
-                    <p style={{ marginBottom: '1.5rem' }}>Create your first project to get started!</p>
-                    <Link to="/projects/new" className="btn btn-primary">
-                        <Plus size={18} /> Create Project
-                    </Link>
+                    <h2 style={{ marginBottom: '0.5rem' }}>
+                        {hasActiveFilters ? 'No Projects Match Your Filters' : 'No Projects Yet'}
+                    </h2>
+                    <p style={{ marginBottom: '1.5rem' }}>
+                        {hasActiveFilters ? 'Try adjusting your search or filters.' : 'Create your first project to get started!'}
+                    </p>
+                    {hasActiveFilters ? (
+                        <button onClick={clearFilters} className="btn btn-primary">
+                            Clear All Filters
+                        </button>
+                    ) : (
+                        <Link to="/projects/new" className="btn btn-primary">
+                            <Plus size={18} /> Create Project
+                        </Link>
+                    )}
                 </div>
             ) : (
                 <div className="table-container">
@@ -155,7 +317,7 @@ const Dashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {projectsList.map((project) => (
+                            {filteredProjects.map((project) => (
                                 <tr key={project.id}>
                                     <td>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

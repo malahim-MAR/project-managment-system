@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Film, Clapperboard, FileText, Video, Users, LogOut, User, MessageCircle, Home, FolderGit2, FileBarChart } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, ROLE_LABELS } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 
 const Sidebar = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, logout, isAdmin } = useAuth();
+    const { user, logout, isAdmin, hasPermission } = useAuth();
 
     const isActive = (path) => {
         if (path === '/') {
@@ -41,58 +41,75 @@ const Sidebar = () => {
             <nav className="sidebar-nav">
                 <div className="sidebar-nav-label">Main Menu</div>
 
-                <Link
-                    to="/"
-                    className={`sidebar-nav-link ${isActive('/') ? 'active' : ''}`}
-                >
-                    <Home size={20} />
-                    <span>Dashboard</span>
-                </Link>
+                {hasPermission('dashboard') && (
+                    <Link
+                        to="/"
+                        className={`sidebar-nav-link ${isActive('/') ? 'active' : ''}`}
+                    >
+                        <Home size={20} />
+                        <span>Dashboard</span>
+                    </Link>
+                )}
 
-                <Link
-                    to="/projects"
-                    className={`sidebar-nav-link ${isActive('/projects') ? 'active' : ''}`}
-                >
-                    <FolderGit2 size={20} />
-                    <span>All Projects</span>
-                </Link>
+                {hasPermission('projects') && (
+                    <Link
+                        to="/projects"
+                        className={`sidebar-nav-link ${isActive('/projects') ? 'active' : ''}`}
+                    >
+                        <FolderGit2 size={20} />
+                        <span>All Projects</span>
+                    </Link>
+                )}
 
-                <Link
-                    to="/videos"
-                    className={`sidebar-nav-link ${isActive('/videos') ? 'active' : ''}`}
-                >
-                    <Film size={20} />
-                    <span>All Videos</span>
-                </Link>
+                {hasPermission('videos') && (
+                    <Link
+                        to="/videos"
+                        className={`sidebar-nav-link ${isActive('/videos') ? 'active' : ''}`}
+                    >
+                        <Film size={20} />
+                        <span>All Videos</span>
+                    </Link>
+                )}
 
-                <Link
-                    to="/scripts"
-                    className={`sidebar-nav-link ${isActive('/scripts') ? 'active' : ''}`}
-                >
-                    <FileText size={20} />
-                    <span>All Scripts</span>
-                </Link>
-                <Link
-                    to="/post-productions"
-                    className={`sidebar-nav-link ${isActive('/post-productions') ? 'active' : ''}`}
-                >
-                    <Video size={20} />
-                    <span>Post Productions</span>
-                </Link>
-                <Link
-                    to="/comments"
-                    className={`sidebar-nav-link ${isActive('/comments') ? 'active' : ''}`}
-                >
-                    <MessageCircle size={20} />
-                    <span>All Comments</span>
-                </Link>
-                <Link
-                    to="/reports"
-                    className={`sidebar-nav-link ${isActive('/reports') ? 'active' : ''}`}
-                >
-                    <FileBarChart size={20} />
-                    <span>Reports</span>
-                </Link>
+                {hasPermission('scripts') && (
+                    <Link
+                        to="/scripts"
+                        className={`sidebar-nav-link ${isActive('/scripts') ? 'active' : ''}`}
+                    >
+                        <FileText size={20} />
+                        <span>All Scripts</span>
+                    </Link>
+                )}
+
+                {hasPermission('post-productions') && (
+                    <Link
+                        to="/post-productions"
+                        className={`sidebar-nav-link ${isActive('/post-productions') ? 'active' : ''}`}
+                    >
+                        <Video size={20} />
+                        <span>Post Productions</span>
+                    </Link>
+                )}
+
+                {hasPermission('comments') && (
+                    <Link
+                        to="/comments"
+                        className={`sidebar-nav-link ${isActive('/comments') ? 'active' : ''}`}
+                    >
+                        <MessageCircle size={20} />
+                        <span>All Comments</span>
+                    </Link>
+                )}
+
+                {hasPermission('reports') && (
+                    <Link
+                        to="/reports"
+                        className={`sidebar-nav-link ${isActive('/reports') ? 'active' : ''}`}
+                    >
+                        <FileBarChart size={20} />
+                        <span>Reports</span>
+                    </Link>
+                )}
 
                 {/* Admin Section */}
                 {isAdmin() && (
@@ -120,7 +137,7 @@ const Sidebar = () => {
                         <div className="sidebar-user-info">
                             <span className="sidebar-user-name">{user.name}</span>
                             <span className="sidebar-user-role">
-                                {user.role === 'admin' ? 'Administrator' : 'User'}
+                                {ROLE_LABELS[user.role] || 'User'}
                             </span>
                         </div>
                     </div>

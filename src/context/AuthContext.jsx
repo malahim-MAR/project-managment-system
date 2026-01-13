@@ -4,6 +4,33 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
+// Available roles in the system
+export const USER_ROLES = {
+    ADMIN: 'admin',
+    EDITOR: 'editor',
+    SCRIPT_WRITER: 'script_writer',
+    CLIENT: 'client',
+    USER: 'user'
+};
+
+// Role display names
+export const ROLE_LABELS = {
+    admin: 'Administrator',
+    editor: 'Editor',
+    script_writer: 'Script Writer',
+    client: 'Client',
+    user: 'User'
+};
+
+// Define which tabs each role can access
+export const ROLE_PERMISSIONS = {
+    admin: ['dashboard', 'projects', 'videos', 'scripts', 'post-productions', 'comments', 'reports', 'manage-users'],
+    editor: ['dashboard', 'videos', 'post-productions', 'comments'],
+    script_writer: ['dashboard', 'scripts', 'videos', 'comments'],
+    client: ['dashboard', 'projects', 'videos', 'comments'],
+    user: ['dashboard', 'projects', 'videos', 'scripts', 'post-productions', 'comments', 'reports']
+};
+
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {
@@ -84,12 +111,31 @@ export const AuthProvider = ({ children }) => {
         return user?.role === 'admin' || user?.isAdmin === true;
     };
 
+    // Check if user has permission to access a specific tab
+    const hasPermission = (tabName) => {
+        if (!user) return false;
+        const role = user.role || 'user';
+        const permissions = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.user;
+        return permissions.includes(tabName);
+    };
+
+    // Update user in state (used after admin edits user's profile)
+    const updateUser = (updatedUserData) => {
+        if (user && updatedUserData.id === user.id) {
+            const newUser = { ...user, ...updatedUserData };
+            setUser(newUser);
+            localStorage.setItem('authUser', JSON.stringify(newUser));
+        }
+    };
+
     const value = {
         user,
         loading,
         login,
         logout,
         isAdmin,
+        hasPermission,
+        updateUser,
         isAuthenticated: !!user
     };
 

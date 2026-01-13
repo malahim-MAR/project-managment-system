@@ -16,14 +16,14 @@ import {
     Bell,
     FileBarChart
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, ROLE_LABELS } from '../context/AuthContext';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 const MobileNav = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, logout, isAdmin } = useAuth();
+    const { user, logout, isAdmin, hasPermission } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
 
@@ -74,14 +74,17 @@ const MobileNav = () => {
     };
 
     const navLinks = [
-        { path: '/', icon: Home, label: 'Dashboard' },
-        { path: '/projects', icon: FolderGit2, label: 'All Projects' },
-        { path: '/videos', icon: Film, label: 'All Videos' },
-        { path: '/scripts', icon: FileText, label: 'All Scripts' },
-        { path: '/post-productions', icon: Video, label: 'Post Productions' },
-        { path: '/comments', icon: MessageCircle, label: 'All Comments' },
-        { path: '/reports', icon: FileBarChart, label: 'Reports' },
+        { path: '/', icon: Home, label: 'Dashboard', permission: 'dashboard' },
+        { path: '/projects', icon: FolderGit2, label: 'All Projects', permission: 'projects' },
+        { path: '/videos', icon: Film, label: 'All Videos', permission: 'videos' },
+        { path: '/scripts', icon: FileText, label: 'All Scripts', permission: 'scripts' },
+        { path: '/post-productions', icon: Video, label: 'Post Productions', permission: 'post-productions' },
+        { path: '/comments', icon: MessageCircle, label: 'All Comments', permission: 'comments' },
+        { path: '/reports', icon: FileBarChart, label: 'Reports', permission: 'reports' },
     ];
+
+    // Filter links based on user permissions
+    const allowedLinks = navLinks.filter(link => hasPermission(link.permission));
 
     return (
         <>
@@ -148,7 +151,7 @@ const MobileNav = () => {
                         <div className="mobile-drawer-user-info">
                             <span className="mobile-drawer-user-name">{user.name}</span>
                             <span className="mobile-drawer-user-role">
-                                {user.role === 'admin' ? 'Administrator' : 'User'}
+                                {ROLE_LABELS[user.role] || 'User'}
                             </span>
                         </div>
                     </div>
@@ -157,7 +160,7 @@ const MobileNav = () => {
                 {/* Navigation Links */}
                 <nav className="mobile-drawer-nav">
                     <div className="mobile-nav-label">Main Menu</div>
-                    {navLinks.map(link => (
+                    {allowedLinks.map(link => (
                         <Link
                             key={link.path}
                             to={link.path}

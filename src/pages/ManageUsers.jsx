@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, USER_ROLES, ROLE_LABELS } from '../context/AuthContext';
 import { db } from '../firebase.js';
 import {
     collection,
@@ -30,7 +30,9 @@ import {
     EyeOff,
     Search,
     CheckCircle,
-    XCircle
+    XCircle,
+    Pencil,
+    X
 } from 'lucide-react';
 
 const ManageUsers = () => {
@@ -45,11 +47,22 @@ const ManageUsers = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
+    // Edit mode state
+    const [editingUser, setEditingUser] = useState(null);
+    const [showEditPassword, setShowEditPassword] = useState(false);
+
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
         role: 'user'
+    });
+
+    const [editFormData, setEditFormData] = useState({
+        name: '',
+        email: '',
+        password: '',
+        role: ''
     });
 
     // Redirect non-admins
@@ -94,6 +107,14 @@ const ManageUsers = () => {
         }));
     };
 
+    const handleEditChange = (e) => {
+        const { name, value } = e.target;
+        setEditFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
     const handleAddUser = async (e) => {
         e.preventDefault();
         setMessage({ type: '', text: '' });
@@ -133,6 +154,75 @@ const ManageUsers = () => {
         } catch (error) {
             console.error('Error adding user:', error);
             setMessage({ type: 'error', text: 'Failed to add user. Please try again.' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Open edit modal
+    const handleEditUser = (userData) => {
+        setEditingUser(userData);
+        setEditFormData({
+            name: userData.name || '',
+            email: userData.email || '',
+            password: '', // Don't pre-fill password for security
+            role: userData.role || 'user'
+        });
+        setShowEditPassword(false);
+    };
+
+    // Save edit
+    const handleSaveEdit = async (e) => {
+        e.preventDefault();
+        setMessage({ type: '', text: '' });
+
+        if (!editFormData.name.trim()) {
+            setMessage({ type: 'error', text: 'Name is required' });
+            return;
+        }
+
+        // Check if email changed and already exists
+        if (editFormData.email !== editingUser.email) {
+            const emailExists = users.some(u =>
+                u.id !== editingUser.id &&
+                u.email.toLowerCase() === editFormData.email.toLowerCase().trim()
+            );
+            if (emailExists) {
+                setMessage({ type: 'error', text: 'A user with this email already exists' });
+                return;
+            }
+        }
+
+        setSaving(true);
+
+        try {
+            const updateData = {
+                name: editFormData.name.trim(),
+                email: editFormData.email.toLowerCase().trim(),
+                role: editFormData.role,
+                updatedAt: serverTimestamp(),
+                updatedBy: user?.email || 'admin'
+            };
+
+            // Only update password if a new one was provided
+            if (editFormData.password.trim()) {
+                updateData.password = editFormData.password;
+            }
+
+            await updateDoc(doc(db, 'users', editingUser.id), updateData);
+
+            // Update local state
+            setUsers(prev => prev.map(u =>
+                u.id === editingUser.id
+                    ? { ...u, ...updateData, password: editFormData.password.trim() || u.password }
+                    : u
+            ));
+
+            setEditingUser(null);
+            setMessage({ type: 'success', text: 'User updated successfully!' });
+        } catch (error) {
+            console.error('Error updating user:', error);
+            setMessage({ type: 'error', text: 'Failed to update user. Please try again.' });
         } finally {
             setSaving(false);
         }
@@ -186,6 +276,17 @@ const ManageUsers = () => {
         u.role?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Get role badge color
+    const getRoleBadgeClass = (role) => {
+        switch (role) {
+            case 'admin': return 'badge-purple';
+            case 'editor': return 'badge-blue';
+            case 'script_writer': return 'badge-green';
+            case 'client': return 'badge-yellow';
+            default: return 'badge-blue';
+        }
+    };
+
     // Clear message after 5 seconds
     useEffect(() => {
         if (message.text) {
@@ -212,7 +313,7 @@ const ManageUsers = () => {
                             Manage Users
                         </h1>
                         <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                            Add and manage system users
+                            Add, edit and manage system users
                         </p>
                     </div>
                 </div>
@@ -314,8 +415,11 @@ const ManageUsers = () => {
                                     value={formData.role}
                                     onChange={handleChange}
                                 >
-                                    <option value="user">User</option>
-                                    <option value="admin">Admin</option>
+                                    {Object.entries(USER_ROLES).map(([key, value]) => (
+                                        <option key={value} value={value}>
+                                            {ROLE_LABELS[value]}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
@@ -346,6 +450,132 @@ const ManageUsers = () => {
                             </button>
                         </div>
                     </form>
+                </div>
+            )}
+
+            {/* Edit User Modal */}
+            {editingUser && (
+                <div className="modal-overlay" onClick={() => setEditingUser(null)}>
+                    <div className="modal animate-fade-in" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                        <div className="modal-header">
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                                <Pencil size={20} />
+                                Edit User
+                            </h3>
+                            <button onClick={() => setEditingUser(null)} className="modal-close-btn">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSaveEdit}>
+                            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                                <div className="form-group">
+                                    <label>
+                                        <User size={16} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                                        Full Name *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={editFormData.name}
+                                        onChange={handleEditChange}
+                                        placeholder="Enter full name"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>
+                                        <Mail size={16} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                                        Email Address *
+                                    </label>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={editFormData.email}
+                                        onChange={handleEditChange}
+                                        placeholder="Enter email address"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>
+                                        <Lock size={16} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                                        New Password <span style={{ color: 'var(--text-secondary)', fontWeight: 'normal' }}>(leave blank to keep current)</span>
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            type={showEditPassword ? 'text' : 'password'}
+                                            name="password"
+                                            value={editFormData.password}
+                                            onChange={handleEditChange}
+                                            placeholder="Enter new password"
+                                            style={{ paddingRight: '3rem' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEditPassword(!showEditPassword)}
+                                            style={{
+                                                position: 'absolute',
+                                                right: '0.75rem',
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                background: 'none',
+                                                border: 'none',
+                                                color: 'var(--text-secondary)',
+                                                cursor: 'pointer',
+                                                padding: '0.25rem'
+                                            }}
+                                        >
+                                            {showEditPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="form-group">
+                                    <label>
+                                        <Shield size={16} style={{ display: 'inline', marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                                        Role *
+                                    </label>
+                                    <select
+                                        name="role"
+                                        value={editFormData.role}
+                                        onChange={handleEditChange}
+                                        required
+                                    >
+                                        {Object.entries(USER_ROLES).map(([key, value]) => (
+                                            <option key={value} value={value}>
+                                                {ROLE_LABELS[value]}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="modal-footer">
+                                <button
+                                    type="button"
+                                    className="btn btn-outline"
+                                    onClick={() => setEditingUser(null)}
+                                >
+                                    Cancel
+                                </button>
+                                <button type="submit" className="btn btn-primary" disabled={saving}>
+                                    {saving ? (
+                                        <>
+                                            <Loader2 size={18} className="spin" />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save size={18} />
+                                            Save Changes
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             )}
 
@@ -397,8 +627,8 @@ const ManageUsers = () => {
                                         </td>
                                         <td>{u.email}</td>
                                         <td>
-                                            <span className={`badge ${u.role === 'admin' ? 'badge-purple' : 'badge-blue'}`}>
-                                                {u.role === 'admin' ? 'Admin' : 'User'}
+                                            <span className={`badge ${getRoleBadgeClass(u.role)}`}>
+                                                {ROLE_LABELS[u.role] || 'User'}
                                             </span>
                                         </td>
                                         <td>
@@ -409,6 +639,14 @@ const ManageUsers = () => {
                                         <td>{u.createdAt}</td>
                                         <td>
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <button
+                                                    onClick={() => handleEditUser(u)}
+                                                    className="btn btn-outline"
+                                                    style={{ padding: '0.4rem 0.6rem', color: 'var(--accent-color)' }}
+                                                    title="Edit User"
+                                                >
+                                                    <Pencil size={18} />
+                                                </button>
                                                 <button
                                                     onClick={() => toggleUserStatus(u.id, u.isActive !== false)}
                                                     className="btn btn-outline"

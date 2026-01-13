@@ -34,6 +34,11 @@ const writerOptions = [
     'Chatgpt'
 ];
 
+const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 const AllScripts = () => {
     const { scripts, loadingScripts, fetchScripts, updateScriptsCache } = useData();
 
@@ -41,6 +46,7 @@ const AllScripts = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedStatus, setSelectedStatus] = useState('all');
     const [selectedWriter, setSelectedWriter] = useState('all');
+    const [selectedMonth, setSelectedMonth] = useState('all');
 
     // Delete state
     const [deletingId, setDeletingId] = useState(null);
@@ -49,6 +55,27 @@ const AllScripts = () => {
         // Fetch all needed data (uses cache if available)
         fetchScripts();
     }, [fetchScripts]);
+
+    // Extract available months from scripts
+    const availableMonths = React.useMemo(() => {
+        if (!scripts) return [];
+        const months = new Set();
+        scripts.forEach(script => {
+            if (script.startedDate) {
+                const date = new Date(script.startedDate);
+                if (!isNaN(date.getTime())) {
+                    const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    months.add(monthYear);
+                }
+            }
+        });
+        return Array.from(months).sort().reverse();
+    }, [scripts]);
+
+    const getMonthLabel = (monthYear) => {
+        const [year, month] = monthYear.split('-');
+        return `${monthNames[parseInt(month) - 1]} ${year}`;
+    };
 
     const handleDelete = async (id) => {
         if (!window.confirm("Delete this script?")) return;
@@ -74,7 +101,19 @@ const AllScripts = () => {
         const matchStatus = selectedStatus === 'all' || script.status === selectedStatus;
         const matchWriter = selectedWriter === 'all' || script.writer === selectedWriter;
 
-        return matchSearch && matchStatus && matchWriter;
+        // Month filter
+        let matchMonth = true;
+        if (selectedMonth !== 'all' && script.startedDate) {
+            const date = new Date(script.startedDate);
+            if (!isNaN(date.getTime())) {
+                const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                matchMonth = monthYear === selectedMonth;
+            } else {
+                matchMonth = false;
+            }
+        }
+
+        return matchSearch && matchStatus && matchWriter && matchMonth;
     });
 
     const getStatusColor = (status) => {
@@ -85,6 +124,15 @@ const AllScripts = () => {
             default: return 'badge-blue';
         }
     };
+
+    const clearFilters = () => {
+        setSearchQuery('');
+        setSelectedStatus('all');
+        setSelectedWriter('all');
+        setSelectedMonth('all');
+    };
+
+    const hasActiveFilters = selectedStatus !== 'all' || selectedWriter !== 'all' || selectedMonth !== 'all' || searchQuery.trim() !== '';
 
     if (loadingScripts || scripts === null) {
         return (
@@ -126,6 +174,16 @@ const AllScripts = () => {
                 </div>
 
                 <div className="filter-dropdown">
+                    <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                        <option value="all">All Months</option>
+                        {availableMonths.map(month => (
+                            <option key={month} value={month}>{getMonthLabel(month)}</option>
+                        ))}
+                    </select>
+                    <ChevronDown size={16} className="dropdown-icon" />
+                </div>
+
+                <div className="filter-dropdown">
                     <select value={selectedWriter} onChange={(e) => setSelectedWriter(e.target.value)}>
                         <option value="all">All Writers</option>
                         {writerOptions.map(w => <option key={w} value={w}>{w}</option>)}
@@ -140,6 +198,18 @@ const AllScripts = () => {
                     </select>
                     <ChevronDown size={16} className="dropdown-icon" />
                 </div>
+
+                {hasActiveFilters && (
+                    <button onClick={clearFilters} className="btn btn-outline">
+                        <Filter size={16} /> Clear Filters
+                    </button>
+                )}
+            </div>
+
+            {/* Results Count */}
+            <div style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+                Showing {filteredScripts.length} of {scriptsList.length} scripts
+                {hasActiveFilters && ' (filtered)'}
             </div>
 
             {/* Table */}
